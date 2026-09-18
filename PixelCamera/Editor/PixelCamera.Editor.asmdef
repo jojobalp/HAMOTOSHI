@@ -4,6 +4,9 @@
     "references": [
         "PixelCamera.Runtime"
     ],
+    "includePlatforms": [
+        "Editor"
+    ],
     "includePaths": [],
     "precompiledReferences": [],
     "autoReferenced": true,

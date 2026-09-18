@@ -34,7 +34,7 @@ namespace PixelCamera
         private static readonly int BloomRadius = Shader.PropertyToID("_BloomRadius");
         private static readonly int CurvatureIntensity = Shader.PropertyToID("_CurvatureIntensity");
         private static readonly int VignetteIntensity = Shader.PropertyToID("_VignetteIntensity");
-        private static readonly int Time = Shader.PropertyToID("_Time");
+        private static readonly int PixelCameraTime = Shader.PropertyToID("_PixelCameraTime");
 
         public PixelCameraRenderPass(PixelCameraRenderFeature feature)
         {
@@ -57,7 +57,11 @@ namespace PixelCamera
             m_CameraColorTarget = cameraColorTarget;
         }
 
-        public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
+        // URP versions that use the RenderGraph path no longer expose OnCameraSetup
+        // as an overridable method. Keep the setup in a regular helper and call it
+        // from Execute so the feature works with both compatibility and RenderGraph
+        // renderer implementations.
+        private void SetupCamera(CommandBuffer cmd, ref RenderingData renderingData)
         {
             var cameraData = renderingData.cameraData;
             var screenDesc = cameraData.cameraTargetDescriptor;
@@ -101,6 +105,7 @@ namespace PixelCamera
             if (m_Material == null || !m_Feature.enabled) return;
 
             CommandBuffer cmd = CommandBufferPool.Get(k_RenderTag);
+            SetupCamera(cmd, ref renderingData);
 
             // Configurar parâmetros do shader
             m_Material.SetVector(PixelResolution, new Vector4(m_PixelWidth, m_PixelHeight, 0, 0));
