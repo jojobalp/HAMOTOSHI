@@ -1,6 +1,9 @@
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.Rendering.Universal;
+
+// Obs.: nenhum tipo do URP é usado neste arquivo, então o "using UnityEngine.Rendering.Universal"
+// foi removido de propósito — sem ele, a falta do pacote URP no projeto não gera o erro
+// CS0234 aqui (as referências ao URP ficam restritas aos arquivos que realmente precisam).
 
 namespace PixelCamera.Editor
 {

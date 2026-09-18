@@ -2,7 +2,10 @@
     "name": "PixelCamera.Editor",
     "rootNamespace": "PixelCamera.Editor",
     "references": [
-        "PixelCamera.Runtime"
+        "PixelCamera.Runtime",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Core.Editor",
+        "Unity.RenderPipelines.Universal.Runtime"
     ],
     "includePlatforms": [
         "Editor"

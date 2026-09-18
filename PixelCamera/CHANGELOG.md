@@ -1,5 +1,28 @@
 # 📋 CHANGELOG - Pixel Camera URP
 
+## [1.0.1] - 2026-09-18
+
+### 🐛 Correções de compilação
+
+- ✅ **CS0118** (`'Editor' is a namespace but is used like a type`): `PixelCameraRenderFeatureEditor`
+  agora herda de `UnityEditor.Editor` (totalmente qualificado). Dentro do namespace
+  `PixelCamera.Editor`, o identificador simples `Editor` resolvia para o namespace em vez da classe.
+- ✅ **CS0234** (`'Universal' does not exist in the namespace 'UnityEngine.Rendering'`):
+  - `PixelCamera.Editor.asmdef` agora referencia `Unity.RenderPipelines.Universal.Runtime`,
+    `Unity.RenderPipelines.Core.Runtime` e `Unity.RenderPipelines.Core.Editor`
+  - Removido o `using UnityEngine.Rendering.Universal` não utilizado de `PixelCameraSetupUtility.cs`
+  - A causa raiz (URP ausente no projeto) é detectada e explicada automaticamente
+
+### ✨ Novidades
+
+- ✅ **`PixelCameraProjectDiagnostics`**: diagnóstico do projeto em
+  **Tools > Pixel Camera > Diagnóstico do Projeto (URP)**. Roda após cada compilação e reporta no
+  Console: URP instalado (e versão), pipeline asset atribuído em Graphics/Quality e presença do
+  Render Feature nos Renderer Assets.
+- ✅ Documentação de troubleshooting atualizada (README, QUICKSTART, GUIA-PASSO-A-PASSO e README raiz).
+
+---
+
 ## [1.0.0] - 2026-09-18
 
 ### 🎉 Initial Release

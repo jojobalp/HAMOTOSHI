@@ -6,8 +6,15 @@ namespace PixelCamera.Editor
     /// <summary>
     /// Editor customizado para PixelCameraRenderFeature
     /// </summary>
+    /// <remarks>
+    /// A base é escrita como <c>UnityEditor.Editor</c> (totalmente qualificada) de propósito:
+    /// como estamos dentro do namespace <c>PixelCamera.Editor</c>, o identificador simples
+    /// <c>Editor</c> é resolvido primeiro para o próprio namespace (membros do namespace
+    /// enclosing têm prioridade sobre tipos importados por <c>using</c>), o que gera o erro
+    /// CS0118 "'Editor' is a namespace but is used like a type".
+    /// </remarks>
     [CustomEditor(typeof(PixelCameraRenderFeature))]
-    public class PixelCameraRenderFeatureEditor : Editor
+    public class PixelCameraRenderFeatureEditor : UnityEditor.Editor
     {
         private bool showPixelSettings = true;
         private bool showPaletteSettings = true;

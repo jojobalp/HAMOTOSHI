@@ -210,6 +210,37 @@ No Inspector do Render Feature:
 
 ## 🐛 Troubleshooting
 
+### Erros de compilação: CS0234 / CS0118
+
+```
+error CS0234: The type or namespace name 'Universal' does not exist in the namespace
+              'UnityEngine.Rendering' (are you missing an assembly reference?)
+error CS0118: 'Editor' is a namespace but is used like a type
+```
+
+**Causa do CS0234:** o projeto **não tem o Universal Render Pipeline instalado**.
+Todo o pacote depende da URP (`ScriptableRendererFeature`, `ScriptableRenderPass`, `Blitter`…),
+então sem ela as assemblies não compilam.
+
+**Solução:**
+1. **Window > Package Manager > Unity Registry**
+2. Procure **Universal RP** e clique em **Install**
+3. **Edit > Project Settings > Graphics > Scriptable Render Pipeline Settings** → atribua um
+   *UniversalRenderPipelineAsset* (crie em *Assets > Create > Rendering > URP Asset (with Universal Renderer)*)
+4. Faça o mesmo em **Project Settings > Quality > Render Pipeline Asset**
+5. Aguarde a recompilação — o Console deve ficar limpo
+
+> 💡 Existe um diagnóstico automático: **Tools > Pixel Camera > Diagnóstico do Projeto (URP)**.
+> Ele também roda sozinho depois de cada compilação e diz no Console exatamente o que falta
+> (URP ausente, pipeline não atribuído ou Render Feature não adicionado).
+
+**Causa do CS0118:** colisão de nomes. Dentro do namespace `PixelCamera.Editor`, o identificador
+simples `Editor` resolve para o **namespace** `PixelCamera.Editor` (membros do namespace "pai" têm
+prioridade sobre os tipos importados pelo `using UnityEditor;`), e não para a classe
+`UnityEditor.Editor`. **Já corrigido no pacote:** as classes de inspector herdam de
+`UnityEditor.Editor` (totalmente qualificado). Se você escrever novos editores dentro de
+`PixelCamera.Editor`, faça o mesmo — ou use outro nome de namespace.
+
 ### Shader não encontrado
 ```
 [PixelCamera] Shader 'Hidden/PixelCamera' não encontrado!
