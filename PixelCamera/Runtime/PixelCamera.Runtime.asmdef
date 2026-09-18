@@ -1,0 +1,13 @@
+{
+    "name": "PixelCamera.Runtime",
+    "rootNamespace": "PixelCamera",
+    "references": [
+        "Unity.RenderPipelines.Universal.Runtime"
+    ],
+    "includePaths": [],
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

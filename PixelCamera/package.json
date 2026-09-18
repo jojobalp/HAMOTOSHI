@@ -1,0 +1,31 @@
+{
+    "name": "com.pixelcamera.unity",
+    "version": "1.0.0",
+    "displayName": "Pixel Camera URP",
+    "description": "Sistema completo de câmera pixel para Unity com URP. Inclui pixelização, paletas limitadas, dithering e efeitos CRT.",
+    "unity": "2021.3",
+    "unityRelease": "0f1",
+    "dependencies": {
+        "com.unity.render-pipelines.universal": "12.0.0"
+    },
+    "keywords": [
+        "pixel",
+        "retro",
+        "camera",
+        "pixelart",
+        "postprocessing",
+        "crt",
+        "dithering",
+        "palette"
+    ],
+    "author": {
+        "name": "Pixel Camera Team"
+    },
+    "samples": [
+        {
+            "displayName": "Demo Scene",
+            "description": "Cena de exemplo com configuração completa",
+            "path": "Samples~/DemoScene"
+        }
+    ]
+}

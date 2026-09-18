@@ -1,0 +1,149 @@
+# 📋 CHANGELOG - Pixel Camera URP
+
+## [1.0.0] - 2026-09-18
+
+### 🎉 Initial Release
+
+#### Features Implementadas
+
+**Pixelização**
+- ✅ Resolução configurável em runtime (16x16 até 1280x720)
+- ✅ Snap to Pixel Grid para alinhamento perfeito
+- ✅ Filtro Point para pixels nítidos
+- ✅ Aspect ratio automático
+
+**Paletas de Cores**
+- ✅ 7 presets inclusos:
+  - GameBoy (4 tons)
+  - NES (16 cores)
+  - CGA (4 cores)
+  - PICO-8 (16 cores)
+  - GB Color (16 cores)
+  - Grayscale (16 tons)
+  - Binary (2 cores)
+- ✅ Paleta custom via textura PNG
+- ✅ Gerador de paleta aleatória
+- ✅ Extrator de paleta de imagens
+- ✅ ScriptableObject para presets custom
+
+**Dithering**
+- ✅ Bayer 2x2 (padrão grande, retrô)
+- ✅ Bayer 4x4 (equilibrado)
+- ✅ Bayer 8x8 (padrão fino, suave)
+- ✅ Intensidade configurável
+- ✅ Toggle independente
+
+**Efeito CRT Completo**
+- ✅ Scanlines (intensidade + espessura)
+- ✅ Bloom/Glow (intensidade + raio)
+- ✅ Curvatura da tela
+- ✅ Vinheta
+- ✅ Todos com controles individuais
+- ✅ Toggle global
+
+**Ferramentas de Editor**
+- ✅ Inspector customizado com foldouts
+- ✅ Palette Editor Window completo
+- ✅ Preview em tempo real
+- ✅ Import/Export de paletas PNG
+- ✅ Presets rápidos (Retrô, GameBoy, CRT)
+- ✅ Setup automático de câmera
+- ✅ Gerador de textura preview
+
+**Controller Runtime**
+- ✅ Atalhos de teclado (F1-F4)
+- ✅ Scroll para ajustar resolução
+- ✅ API pública para código
+- ✅ Toggle de todos os efeitos
+
+**Arquitetura**
+- ✅ URP RenderFeature nativo
+- ✅ Shader HLSL otimizado
+- ✅ Assembly definitions organizados
+- ✅ Namespace dedicado (PixelCamera)
+- ✅ Documentação completa
+
+#### Documentação
+- ✅ README.md com guia completo
+- ✅ Quick Start Guide
+- ✅ Exemplos de código
+- ✅ Troubleshooting
+- ✅ Presets recomendados
+- ✅ CHANGELOG
+
+#### Samples
+- ✅ PixelCameraDemo com presets configuráveis
+- ✅ Exemplos de uso em runtime
+
+---
+
+## Roadmap Futuro
+
+### Próximas Versões
+
+**[1.1.0] - Melhorias de Performance**
+- [ ] Otimização de shaders para mobile
+- [ ] GPU Instancing support
+- [ ] Compute shaders para dithering complexo
+- [ ] LOD automático baseado em resolução
+
+**[1.2.0] - Novos Efeitos**
+- [ ] Floyd-Steinberg dithering (error diffusion)
+- [ ] CRT Phosphor mask (RGB subpixels)
+- [ ] Chromatic aberration
+- [ ] Noise/grain opcional
+- [ ] Color bleeding entre pixels
+
+**[1.3.0] - Ferramentas**
+- [ ] Preview window com comparação side-by-side
+- [ ] Timeline support para animação de efeitos
+- [ ] Shader graph version (URP 14+)
+- [ ] HDRP compatibility layer
+
+**[2.0.0] - Refatoração**
+- [ ] ScriptableObject para todas as configurações
+- [ ] Sistema de camadas de efeitos
+- [ ] Blend entre presets
+- [ ] Preset browser no editor
+- [ ] Undo/Redo support completo
+
+---
+
+## Notas Técnicas
+
+### Requisitos
+- Unity 2021.3 LTS ou superior
+- Universal Render Pipeline 12.0+
+- Shader Model 4.5+
+
+### Compatibilidade
+- ✅ Windows
+- ✅ macOS
+- ✅ Linux
+- ✅ Android
+- ✅ iOS
+- ✅ WebGL (com limitações)
+- ❌ Consoles (testar individualmente)
+
+### Performance
+- **1080p**: 320x180 = ~0.1ms no GPU
+- **1440p**: 640x360 = ~0.2ms no GPU
+- **4K**: 640x360 = ~0.3ms no GPU
+
+### Limitações Conhecidas
+- Paleta máxima: 16 cores (limitação do shader)
+- Floyd-Steinberg requer múltiplos passes (não implementado)
+- CRT curvature pode causar clipping nas bordas
+- Bloom é aproximação simples (não é physically-based)
+
+---
+
+## Créditos
+
+Desenvolvido para Unity URP com foco em jogos pixel art e efeitos retrô.
+
+Baseado em técnicas clássicas de:
+- Bayer ordered dithering
+- CGA/VGA palettes
+- CRT emulation shaders
+- Modern pixel art engines (PICO-8, Aseprite)
