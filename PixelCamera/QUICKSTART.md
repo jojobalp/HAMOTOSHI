@@ -2,9 +2,17 @@
 
 ## Setup em 5 minutos
 
+### Passo 0: Pré-requisito (URP)
+O pacote **exige** o Universal Render Pipeline. Sem ele você recebe erros como
+`CS0234: The type or namespace name 'Universal' does not exist in the namespace 'UnityEngine.Rendering'`.
+
+1. **Window > Package Manager > Unity Registry** → instale **Universal RP**
+2. **Edit > Project Settings > Graphics** e **Quality** → atribua um *UniversalRenderPipelineAsset*
+
 ### Passo 1: Instalar
 1. Copie a pasta `PixelCamera` para `Assets/` do seu projeto Unity
 2. Aguarde a Unity compilar os scripts
+3. Se aparecer algum erro no Console, rode **Tools > Pixel Camera > Diagnóstico do Projeto (URP)**
 
 ### Passo 2: Configurar URP Renderer
 1. Vá em **Edit > Project Settings > Graphics**
@@ -106,6 +114,16 @@ pixelCamera.SetCustomPalette(palette);
 ---
 
 ## Troubleshooting
+
+### "CS0234: The type or namespace name 'Universal' does not exist"
+- O **Universal RP não está instalado** no projeto
+- **Window > Package Manager > Unity Registry > Universal RP > Install**
+- Depois atribua o *UniversalRenderPipelineAsset* em **Project Settings > Graphics** e **Quality**
+- Rode **Tools > Pixel Camera > Diagnóstico do Projeto (URP)** para confirmar
+
+### "'Editor' is a namespace but is used like a type (CS0118)"
+- Colisão entre o namespace `PixelCamera.Editor` e a classe `UnityEditor.Editor`
+- Use a base totalmente qualificada: `public class MeuEditor : UnityEditor.Editor`
 
 ### "Shader não encontrado"
 - Verifique se `PixelCameraShader.shader` está em `Assets/PixelCamera/Runtime/Shaders/`

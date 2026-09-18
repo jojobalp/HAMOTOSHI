@@ -1,6 +1,6 @@
 {
     "name": "com.pixelcamera.unity",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "displayName": "Pixel Camera URP",
     "description": "Sistema completo de câmera pixel para Unity com URP. Inclui pixelização, paletas limitadas, dithering e efeitos CRT.",
     "unity": "2021.3",
