@@ -136,7 +136,7 @@ namespace PixelCamera
             m_Material.SetFloat(VignetteIntensity, m_Feature.crtSettings.vignetteIntensity);
 
             // Time para animações
-            m_Material.SetFloat(Time, Time.time);
+            m_Material.SetFloat(PixelCameraTime, Time.time);
 
             // Renderizar para textura de baixa resolução
             Blit(cmd, m_CameraColorTarget, m_LowResTexture, m_Material);

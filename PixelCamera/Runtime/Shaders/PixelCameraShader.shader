@@ -41,7 +41,10 @@ Shader "Hidden/PixelCamera"
     float _BloomRadius;
     float _CurvatureIntensity;
     float _VignetteIntensity;
-    float _Time;
+    // NOTA: não declarar "_Time" aqui! O URP já declara float4 _Time em
+    // UnityInput.hlsl (incluído por Core.hlsl), o que gera o erro
+    // "redefinition of '_Time'". Use um nome próprio para o tempo.
+    float _PixelCameraTime;
 
     // Matrizes de Bayer para dithering
     static const float Bayer2x2[4] = {
@@ -128,14 +131,21 @@ Shader "Hidden/PixelCamera"
         return floor(color * levels + 0.5) / levels;
     }
 
+    // Máximo de cores suportado (mesmo limite da textura de paleta 16x1)
+    #define PALETTE_MAX_COLORS 16
+
     // Encontrar cor mais próxima na paleta
     float3 FindClosestPaletteColor(float3 color, int paletteSize)
     {
         float minDist = 1000.0;
         float3 closestColor = color;
 
-        for (int i = 0; i < paletteSize; i++)
+        // O limite do loop deve ser constante para o compilador conseguir
+        // desenrolar (necessário no d3d11 / feature level 9.3 usado pelo URP).
+        for (int i = 0; i < PALETTE_MAX_COLORS; i++)
         {
+            if (i >= paletteSize) break;
+
             float3 paletteColor = SAMPLE_TEXTURE2D(_CustomPalette, sampler_CustomPalette, float2(float(i) / float(paletteSize - 1), 0.5)).rgb;
             float dist = distance(color, paletteColor);
             
