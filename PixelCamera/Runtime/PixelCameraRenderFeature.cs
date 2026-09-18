@@ -146,9 +146,17 @@ namespace PixelCamera
 
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
         {
-            if (!enabled) return;
-            
+            if (!enabled || m_RenderPass == null) return;
+
+#if !UNITY_6000_0_OR_NEWER
+            // No Unity 6 (URP 17+) não é preciso configurar um target manualmente:
+            // o Render Graph obtém a cor ativa da câmera via UniversalResourceData.
+#if UNITY_2022_1_OR_NEWER
+            m_RenderPass.Setup(renderer.cameraColorTargetHandle);
+#else
             m_RenderPass.Setup(renderer.cameraColorTarget);
+#endif
+#endif
             renderer.EnqueuePass(m_RenderPass);
         }
 

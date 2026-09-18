@@ -2,7 +2,7 @@ Shader "Hidden/PixelCamera"
 {
     Properties
     {
-        _MainTex ("Texture", 2D) = "white" {}
+        _CustomPalette ("Paleta de cores", 2D) = "white" {}
     }
 
     HLSLINCLUDE
@@ -12,8 +12,14 @@ Shader "Hidden/PixelCamera"
 
     struct Attributes
     {
+    #if defined(_USE_DRAW_PROCEDURAL)
+        // O Blitter/RenderGraph da URP desenha um triângulo fullscreen procedural
+        // (sem malha), então recebemos apenas o ID do vértice.
+        uint vertexID : SV_VertexID;
+    #else
         float4 positionOS : POSITION;
         float2 uv : TEXCOORD0;
+    #endif
     };
 
     struct Varyings
@@ -22,8 +28,10 @@ Shader "Hidden/PixelCamera"
         float2 uv : TEXCOORD0;
     };
 
-    TEXTURE2D(_MainTex);
-    SAMPLER(sampler_MainTex);
+    // O Blitter da URP expõe a textura de origem como "_BlitTexture"
+    // (o "_MainTex" só era configurado pelo caminho legado bem antigo).
+    TEXTURE2D_X(_BlitTexture);
+    SAMPLER(sampler_BlitTexture);
     TEXTURE2D(_CustomPalette);
     SAMPLER(sampler_CustomPalette);
 
@@ -73,8 +81,13 @@ Shader "Hidden/PixelCamera"
     Varyings Vert(Attributes input)
     {
         Varyings output;
+    #if defined(_USE_DRAW_PROCEDURAL)
+        output.positionCS = GetFullScreenTriangleVertexPosition(input.vertexID);
+        output.uv = GetFullScreenTriangleTexCoord(input.vertexID);
+    #else
         output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
         output.uv = input.uv;
+    #endif
         return output;
     }
 
@@ -175,8 +188,8 @@ Shader "Hidden/PixelCamera"
             }
         }
 
-        // Amostr textura
-        float4 color = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, uv);
+        // Amostrar textura
+        float4 color = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, uv);
 
         // Aplicar paleta limitada
         if (_PaletteEnabled > 0.5)
@@ -237,7 +250,7 @@ Shader "Hidden/PixelCamera"
                     for (int j = -2; j <= 2; j++)
                     {
                         float2 offset = float2(i, j) * _BloomRadius / _ScreenParams.xy;
-                        bloom += SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, uv + offset).rgb;
+                        bloom += SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, uv + offset).rgb;
                         samples += 1.0;
                     }
                 }
@@ -249,12 +262,28 @@ Shader "Hidden/PixelCamera"
 
         return color;
     }
+
+    // Sampler explícito com filtro point: usado no upscale da textura de baixa
+    // resolução para manter os pixels "quadradões" (sem interpolação bilinear).
+    SamplerState PixelCameraPointClampSampler
+    {
+        Filter = MIN_MAG_MIP_POINT;
+        AddressU = Clamp;
+        AddressV = Clamp;
+    };
+
+    // Pass de cópia simples com filtro point (upscale da textura de baixa resolução)
+    float4 FragUpscale(Varyings input) : SV_Target
+    {
+        return SAMPLE_TEXTURE2D_X(_BlitTexture, PixelCameraPointClampSampler, input.uv);
+    }
     ENDHLSL
 
     SubShader
     {
         Tags { "RenderPipeline" = "UniversalPipeline" }
         
+        // Pass 0: pixelização + paleta + dithering + CRT (cena -> baixa resolução)
         Pass
         {
             Name "PixelCameraPass"
@@ -265,6 +294,22 @@ Shader "Hidden/PixelCamera"
             HLSLPROGRAM
             #pragma vertex Vert
             #pragma fragment Frag
+            #pragma multi_compile _ _USE_DRAW_PROCEDURAL
+            ENDHLSL
+        }
+
+        // Pass 1: upscale com filtro point (baixa resolução -> resolução da câmera)
+        Pass
+        {
+            Name "PixelCameraUpscalePass"
+            ZTest Always
+            ZWrite Off
+            Cull Off
+
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment FragUpscale
+            #pragma multi_compile _ _USE_DRAW_PROCEDURAL
             ENDHLSL
         }
     }
