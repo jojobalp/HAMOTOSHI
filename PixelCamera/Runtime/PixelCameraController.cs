@@ -13,6 +13,15 @@ namespace PixelCamera
         [Tooltip("PixelCameraRenderFeature configurado")]
         [SerializeField] private PixelCameraRenderFeature renderFeature;
 
+        /// <summary>
+        /// Render feature configurado (preenchido pelo PixelCameraAutoSetup ou via inspector).
+        /// </summary>
+        public PixelCameraRenderFeature RenderFeature
+        {
+            get => renderFeature;
+            set => renderFeature = value;
+        }
+
         [Header("Controles Runtime")]
         [Tooltip("Permite ajustar resolução em runtime")]
         [SerializeField] private bool enableRuntimeControls = true;
