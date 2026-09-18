@@ -1,0 +1,13 @@
+{
+    "name": "PixelCamera.Editor",
+    "rootNamespace": "PixelCamera.Editor",
+    "references": [
+        "PixelCamera.Runtime"
+    ],
+    "includePaths": [],
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
