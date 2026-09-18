@@ -98,7 +98,7 @@ namespace PixelCamera
             ApplyManualSettings(renderFeature);
             
             // Conectar ao controller
-            m_Controller.renderFeature = renderFeature;
+            m_Controller.RenderFeature = renderFeature;
             
             Debug.Log("[PixelCamera AutoSetup] Configurações aplicadas com sucesso!");
         }
@@ -191,7 +191,7 @@ namespace PixelCamera
             }
             
             // Conectar ao controller
-            m_Controller.renderFeature = feature;
+            m_Controller.RenderFeature = feature;
         }
 
         private PixelCameraRenderFeature FindPixelCameraRenderFeature()
