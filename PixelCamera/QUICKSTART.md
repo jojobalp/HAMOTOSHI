@@ -145,6 +145,15 @@ pixelCamera.SetCustomPalette(palette);
 - Verifique versão do Unity (2021.3+)
 - Reinicie a Unity
 
+### "[PixelCamera AutoSetup] PixelCameraRenderFeature não encontrado!"
+- Corrigido na **1.0.2**: o Auto Setup usava `Object.FindObjectsOfType`, que não enxerga
+  ScriptableObjects (o Render Feature é um sub-asset do Renderer Asset)
+- Agora ele lê `ScriptableRendererData.rendererFeatures` (API pública da URP 12–17)
+- Arraste o seu **Renderer Asset** para o campo **Renderer Asset** do componente —
+  ou o próprio Render Feature para o campo **Render Feature (direto)**
+- Confirme que o Render Feature foi adicionado ao Renderer (**Add Renderer Feature**) e que a
+  caixa ao lado do nome dele está marcada
+
 ---
 
 ## Exemplos de Código

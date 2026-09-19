@@ -50,6 +50,7 @@ No Unity 6, certifique-se de que o **Render Graph está habilitado** em
 | `CS0234 ... 'Universal' does not exist` | URP não instalado (ou `.asmdef` sem referência) | Instalar **Universal RP**; os `.asmdef` já referenciam `Unity.RenderPipelines.Universal.Runtime` |
 | `CS0118 'Editor' is a namespace but is used like a type` | Dentro de `namespace PixelCamera.Editor`, `Editor` resolve para o namespace, não para `UnityEditor.Editor` | Herdar de `UnityEditor.Editor` (qualificado) — já aplicado em `PixelCameraRenderFeatureEditor` |
 | `CS0115 ... no suitable method found to override` | URP 17+ removeu `Execute` público | Usar Unity 6 com `RecordRenderGraph` (já implementado) |
+| `[PixelCamera AutoSetup] PixelCameraRenderFeature não encontrado!` | O Auto Setup usava `Object.FindObjectsOfType`, que não enxerga ScriptableObjects (o Render Feature é sub-asset do Renderer Asset) | Corrigido na **1.0.2**: usa a API pública `ScriptableRendererData.rendererFeatures` + campo opcional de referência direta |
 
 Documentação completa em [`PixelCamera/README.md`](PixelCamera/README.md) e
 [`PixelCamera/GUIA-PASSO-A-PASSO.md`](PixelCamera/GUIA-PASSO-A-PASSO.md).

@@ -43,10 +43,14 @@ namespace PixelCamera
         private void Awake()
         {
             m_Camera = GetComponent<Camera>();
-            
-            if (renderFeature == null)
+
+            // O PixelCameraAutoSetup adiciona este componente em runtime e só resolve o
+            // RenderFeature alguns instantes depois (ele é um sub-asset do Renderer Asset).
+            // Avisar nesse caso seria um falso alarme.
+            if (renderFeature == null && GetComponent<PixelCameraAutoSetup>() == null)
             {
-                Debug.LogWarning("[PixelCamera] Nenhum RenderFeature configurado! Configure no Universal Render Pipeline Asset.");
+                Debug.LogWarning("[PixelCamera] Nenhum RenderFeature configurado! Configure no Universal Render Pipeline Asset " +
+                    "ou adicione o componente 'Pixel Camera Auto Setup' à câmera.");
             }
         }
 

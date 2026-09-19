@@ -1,5 +1,41 @@
 # 📋 CHANGELOG - Pixel Camera URP
 
+## [1.0.2] - 2026-09-18
+
+### 🐛 Correções
+
+- ✅ **`PixelCameraAutoSetup` nunca encontrava o Render Feature**
+  (Console: `[PixelCamera AutoSetup] PixelCameraRenderFeature não encontrado!`, e o efeito nunca
+  era aplicado):
+  - A busca usava `Object.FindObjectsOfType<PixelCameraRenderFeature>()`. Um
+    `ScriptableRendererFeature` é um **ScriptableObject gravado como sub-asset** do Renderer Asset,
+    e o `FindObjectsOfType` só devolve objetos **da cena** — o array voltava sempre vazio.
+  - O campo `rendererAsset` do Inspector era **ignorado** pelo código.
+  - Em Unity 6 o `FindObjectsOfType` ainda é obsoleto (aviso CS0618).
+  - Agora a resolução segue esta ordem: campo novo **Render Feature (direto)** →
+    **Renderer Asset** do Inspector (via `ScriptableRendererData.rendererFeatures`, API pública da
+    URP 12 à 17, sem reflection) → varredura dos Renderer Assets do projeto (Editor) →
+    `Resources.FindObjectsOfTypeAll`. Se nada for achado, a mensagem de erro lista os passos exatos.
+- ✅ **Aviso falso do `PixelCameraController`**: `"Nenhum RenderFeature configurado!"` aparecia
+  sempre que o `PixelCameraAutoSetup` adicionava o controller em runtime (ele resolve a referência
+  logo depois). O aviso agora é suprimido quando há um Auto Setup no mesmo GameObject.
+- ✅ **CS0618 no Unity 6**: `Object.FindObjectOfType<Camera>()` em `PixelCameraSetupUtility`
+  substituído por `FindFirstObjectByType` (com fallback para versões antigas).
+- ✅ `PixelCameraAutoSetup` agora avisa quando o Render Feature está **inativo no Renderer Asset**
+  (`ScriptableRendererFeature.isActive`) — nesse caso a URP nem chama `AddRenderPasses`.
+- ✅ `PixelCameraAutoSetup` repete a busca algumas vezes (até ~2s) e passa a conexão do
+  `PixelCameraController` para antes da aplicação das configurações, inclusive no caminho de
+  preset rápido; `GraphicsSettings.currentRenderPipeline` ganhou fallback para Unity 2021
+  (`renderPipelineAsset`).
+
+### ✨ Novidades
+
+- ✅ `PixelCameraAutoSetup.ActiveRenderFeature` (somente leitura) e `RendererAsset` (leitura/escrita)
+  para configurar o componente via código.
+- ✅ Campo opcional **"Render Feature (direto)"** no `PixelCameraAutoSetup`.
+
+---
+
 ## [1.0.1] - 2026-09-18
 
 ### 🐛 Correções de compilação
