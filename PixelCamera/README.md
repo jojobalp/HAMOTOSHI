@@ -247,6 +247,28 @@ prioridade sobre os tipos importados pelo `using UnityEditor;`), e não para a c
 ```
 **Solução:** Verifique se o arquivo `PixelCameraShader.shader` está em `Assets/PixelCamera/Runtime/Shaders/`
 
+### "[PixelCamera AutoSetup] PixelCameraRenderFeature não encontrado!"
+
+O `PixelCameraAutoSetup` não conseguia achar o Render Feature porque usava
+`Object.FindObjectsOfType<PixelCameraRenderFeature>()`. Um `ScriptableRendererFeature` é um
+**ScriptableObject gravado como sub-asset** do Renderer Asset — e o `FindObjectsOfType` só devolve
+objetos que estão **na cena**, então a busca sempre voltava vazia (e o efeito nunca era aplicado).
+Em Unity 6 a API ainda é obsoleta (aviso CS0618).
+
+**Já corrigido no pacote (1.0.2).** A busca agora usa a API pública da URP
+`ScriptableRendererData.rendererFeatures` (válida da URP 12 à 17), nesta ordem:
+
+1. campo **Render Feature (direto)** do componente, se preenchido;
+2. campo **Renderer Asset** do componente;
+3. no Editor, todos os Renderer Assets do projeto;
+4. qualquer instância já carregada (`Resources.FindObjectsOfTypeAll`).
+
+Se ainda aparecer o erro, é porque o Render Feature realmente não foi adicionado:
+1. Selecione o seu **Renderer Asset** no Project
+2. **Add Renderer Feature > Pixel Camera Render Feature**
+3. Marque a caixa ao lado do nome dele (se estiver inativo, a URP nem chama o pass)
+4. Arraste o Renderer Asset para o campo **Renderer Asset** do `Pixel Camera Auto Setup`
+
 ### Render Feature não aparece
 **Solução:** 
 1. Verifique se está usando URP (não Built-in ou HDRP)

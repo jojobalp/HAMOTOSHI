@@ -396,6 +396,12 @@ corrigida no código atual (a herança usa `UnityEditor.Editor` qualificado).
 2. Verifique se a Camera está usando o Renderer correto
 3. Na Camera, campo **"Renderer"** deve apontar para `PixelCameraRenderer`
 4. Verifique se o **Render Pass Event** está em `BeforeRenderingPostProcessing`
+5. Se estiver usando o **Pixel Camera Auto Setup**: arraste o Renderer Asset para o campo
+   **"Renderer Asset"** do componente. Até a versão 1.0.1 ele buscava o Render Feature com
+   `Object.FindObjectsOfType`, que não encontra ScriptableObjects (o Render Feature é um
+   sub-asset do Renderer Asset) e sempre falhava com
+   *"[PixelCamera AutoSetup] PixelCameraRenderFeature não encontrado!"* — corrigido na 1.0.2,
+   que lê `ScriptableRendererData.rendererFeatures`
 
 ### ❌ "Pixels não são quadrados perfeitos"
 **Problema:** Pixels aparecem distorcidos/retangulares
