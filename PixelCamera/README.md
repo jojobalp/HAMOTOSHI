@@ -40,6 +40,16 @@ Assets/
 
 ### 2. Configurar URP Renderer
 
+#### 🚀 Maneira mais fácil (1 clique)
+Depois de instalar o pacote, vá no menu:
+
+**Tools > Pixel Camera > Corrigir Automaticamente (Adicionar Render Feature)**
+
+Isso encontra o Renderer que está ATIVO na sua pipeline e adiciona o `Pixel Camera Render Feature`
+nele automaticamente, sem duplicação. Depois é só adicionar o componente `PixelCameraAutoSetup`
+na câmera (ou usar **Tools > Pixel Camera > Setup na Câmera Atual**, que faz tudo).
+
+#### Manual
 1. Abra o **Universal Render Pipeline Asset** (Edit > Project Settings > Graphics)
 2. Clique em **Edit** no Renderer
 3. Clique em **Add Renderer Feature**

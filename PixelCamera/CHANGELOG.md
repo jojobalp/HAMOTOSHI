@@ -1,5 +1,45 @@
 # 📋 CHANGELOG - Pixel Camera URP
 
+## [1.0.3] - 2026-09-19
+
+### 🐛 Correções
+
+- ✅ **Falso negativo no diagnóstico**: "Foram encontrados 3 Renderer Asset(s), mas nenhum tem
+  o Pixel Camera Render Feature" aparecia mesmo em projetos configurados. Causas:
+  - O código só olhava dentro de `Assets/` (ignorava `Packages/`, onde URP Assets criados
+    pelo template 2D/3D URP do Unity 6 costumam ficar).
+  - O filtro era por nome de arquivo (procurava "Renderer" no nome) em vez de usar
+    `t:ScriptableRendererData` — fragilidade que quebrava com nomes como `PC_RPAsset`,
+    `URP-HighQuality` etc.
+  - O `AssetDatabase.LoadAssetAtPath<ScriptableObject>` pegava só o asset raiz;
+    sub-assets (onde o Render Feature é serializado quando você clica "Add Renderer Feature"
+    no inspector novo do Unity 6/URP 17) podiam não ser vistos pelo SerializedProperty.
+  - Agora usa busca por tipo real (`t:ScriptableRendererData`), inclui `Assets/` e
+    `Packages/`, usa a API pública `ScriptableRendererData.rendererFeatures` e tem fallback
+    via SerializedObject — mesma estratégia robusta do `PixelCameraAutoSetup`.
+- ✅ **Diagnóstico diferencia Renderer ATIVO vs outros Renderers**: antes o aviso só dizia
+  "nenhum tem o Feature", mesmo que ele existisse num Renderer que não estava em uso pela
+  pipeline. Agora o aviso alerta que "o Feature existe, mas não está no Renderer que
+  realmente está sendo renderizado" — causa comum de o efeito não aparecer em jogo.
+
+### ✨ Novidades
+
+- ✅ **Auto-correção em 1 clique**: novo menu **Tools > Pixel Camera > Corrigir
+  Automaticamente (Adicionar Render Feature)** que adiciona o `PixelCameraRenderFeature`
+  ao(s) Renderer(s) ativo(s) da pipeline sem duplicação e registra como sub-asset
+  corretamente (`AssetDatabase.AddObjectToAsset`).
+- ✅ **Botão "Corrigir Automaticamente"** no dialog do diagnóstico, além de botão para
+  "Abrir Renderer Ativo" que pinga o Renderer em uso na janela Project.
+- ✅ **Setup na Câmera Atual** agora:
+  - Chama o auto-fix do Render Feature antes de qualquer coisa (não mais "configure
+    manualmente depois");
+  - Adiciona `PixelCameraAutoSetup` em vez de só o Controller, cobrindo pixel/paleta/
+    dithering/CRT com valores padrão;
+  - Preenche automaticamente o campo `Renderer Asset` com o Renderer ativo da pipeline;
+  - Mostra um resumo claro do que foi configurado.
+
+---
+
 ## [1.0.2] - 2026-09-18
 
 ### 🐛 Correções
