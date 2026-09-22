@@ -117,15 +117,18 @@ namespace PixelCamera.Editor
                 
                 if (ditherSettings.FindPropertyRelative("enableDithering").boolValue)
                 {
-                    EditorGUILayout.PropertyField(ditherSettings.FindPropertyRelative("ditherType"), new GUIContent("Tipo"));
+                    DrawDitherTypeField(ditherSettings.FindPropertyRelative("ditherType"));
                     EditorGUILayout.PropertyField(ditherSettings.FindPropertyRelative("intensity"), new GUIContent("Intensidade"));
                     
                     EditorGUILayout.HelpBox(
-                        "Tipos de Dithering:\n" +
+                        "Tipos de Dithering (Bayer ordenado):\n" +
                         "• Bayer 2x2: Padrão simples, pixels grandes\n" +
                         "• Bayer 4x4: Equilibrado, padrão médio\n" +
-                        "• Bayer 8x8: Suave, padrão fino\n" +
-                        "• Floyd-Steinberg: Diffusion (requer múltiplos passes)",
+                        "• Bayer 8x8: Suave, padrão fino\n\n" +
+                        "O threshold é aplicado ANTES da quantização/lookup da paleta, então o\n" +
+                        "dithering alterna entre cores reais da paleta.\n\n" +
+                        "Floyd-Steinberg (difusão de erro) não está implementado — requer\n" +
+                        "múltiplos passes (roadmap 1.2.0).",
                         MessageType.Info);
                 }
                 
@@ -213,29 +216,88 @@ namespace PixelCamera.Editor
             serializedObject.ApplyModifiedProperties();
         }
 
+        /// <summary>
+        /// Desenha o campo de tipo de dithering como um popup explícito.
+        /// </summary>
+        /// <remarks>
+        /// <c>EditorGUILayout.PropertyField</c> num enum mostra <b>todos</b> os
+        /// nomes da <c>Enum</c> subjacente. Como <c>FloydSteinberg</c> foi
+        /// removido do <c>DitherType</c>, um asset antigo que tinha esse valor
+        /// selecionado guardaria o inteiro órfão 3 e o popup exibiria
+        /// "FloydSteinberg" mesmo sem ele existir — além de não aplicar dithering
+        /// nenhum. Aqui o valor é validado e normalizado para Bayer 4x4.
+        /// </remarks>
+        private static void DrawDitherTypeField(SerializedProperty ditherTypeProp)
+        {
+            var names = System.Enum.GetNames(typeof(PixelCameraRenderFeature.DitherType));
+            int current = ditherTypeProp.enumValueFlag;
+
+            if (current < 0 || current >= names.Length)
+            {
+                EditorGUILayout.HelpBox(
+                    "Este asset tinha um tipo de dithering que não existe mais nesta versão " +
+                    "(provavelmente Floyd-Steinberg, que nunca foi implementado). " +
+                    "O valor foi normalizado para Bayer 4x4.",
+                    MessageType.Warning);
+
+                ditherTypeProp.enumValueFlag = (int)PixelCameraRenderFeature.DitherType.Bayer4x4;
+                current = ditherTypeProp.enumValueFlag;
+            }
+
+            int selected = EditorGUILayout.Popup(new GUIContent("Tipo"), current, names);
+            if (selected != current)
+            {
+                ditherTypeProp.enumValueFlag = selected;
+            }
+        }
+
+        /// <summary>
+        /// Gera uma paleta aleatória e a salva como asset no projeto.
+        /// </summary>
+        /// <remarks>
+        /// Antes isto criava um <c>Texture2D</c> apenas em memória e o atribuía a
+        /// um campo serializado. Uma textura sem existência em disco não
+        /// sobrevive a domain reload / salvar a cena, então a referência se
+        /// perdia (o Inspector ficava com "None"). Agora a paleta é gravada como
+        /// asset via <c>AssetDatabase.CreateAsset</c>.
+        /// </remarks>
         private void GenerateRandomPalette()
         {
             var paletteSettings = serializedObject.FindProperty("paletteSettings");
-            var colorCount = paletteSettings.FindPropertyRelative("colorCount").intValue;
-            
-            var palette = new Texture2D(16, 1, TextureFormat.RGBA32, false);
-            palette.filterMode = FilterMode.Point;
-            
-            for (int i = 0; i < Mathf.Min(colorCount, 16); i++)
+            int colorCount = Mathf.Clamp(paletteSettings.FindPropertyRelative("colorCount").intValue, 1, 16);
+
+            // Passa pelo PaletteUtility para manter o formato que o shader
+            // espera (16x1, Point, Clamp, 16 slots preenchidos, cores em HSV).
+            var palette = PaletteUtility.CreateRandomPalette(colorCount);
+
+            string folder = EditorUtility.SaveFolderPanel(
+                "Onde salvar a paleta aleatória", Application.dataPath, "");
+            if (string.IsNullOrEmpty(folder))
             {
-                Color randomColor = new Color(
-                    Random.value,
-                    Random.value,
-                    Random.value,
-                    1.0f
-                );
-                palette.SetPixel(i, 0, randomColor);
+                DestroyImmediate(palette);
+                return;
             }
-            
-            palette.Apply();
+
+            if (!folder.StartsWith(Application.dataPath))
+            {
+                EditorUtility.DisplayDialog(
+                    "Fora do projeto",
+                    "Escolha uma pasta dentro de 'Assets/' para que a paleta possa ser salva como asset do Unity.",
+                    "OK");
+                DestroyImmediate(palette);
+                return;
+            }
+
+            // Converte o caminho absoluto em caminho relativo a Assets/
+            string relativeFolder = "Assets" + folder.Substring(Application.dataPath.Length);
+            string assetPath = AssetDatabase.GenerateUniqueAssetPath(relativeFolder + "/RandomPalette.asset");
+
+            AssetDatabase.CreateAsset(palette, assetPath);
+            AssetDatabase.SaveAssets();
+
             paletteSettings.FindPropertyRelative("customPalette").objectReferenceValue = palette;
-            
-            Debug.Log("[PixelCamera] Paleta aleatória gerada!");
+
+            Debug.Log("[PixelCamera] Paleta aleatória gerada em: " + assetPath);
         }
 
         private void ImportPaletteFromTexture()
@@ -278,11 +340,11 @@ namespace PixelCamera.Editor
             
             var paletteSettings = serializedObject.FindProperty("paletteSettings");
             paletteSettings.FindPropertyRelative("enablePalette").boolValue = true;
-            paletteSettings.FindPropertyRelative("preset").enumValueIndex = (int)PixelCameraRenderFeature.PalettePreset.PICO8;
+            paletteSettings.FindPropertyRelative("preset").enumValueFlag = (int)PixelCameraRenderFeature.PalettePreset.PICO8;
             
             var ditherSettings = serializedObject.FindProperty("ditherSettings");
             ditherSettings.FindPropertyRelative("enableDithering").boolValue = true;
-            ditherSettings.FindPropertyRelative("ditherType").enumValueIndex = (int)PixelCameraRenderFeature.DitherType.Bayer4x4;
+            ditherSettings.FindPropertyRelative("ditherType").enumValueFlag = (int)PixelCameraRenderFeature.DitherType.Bayer4x4;
             ditherSettings.FindPropertyRelative("intensity").floatValue = 0.3f;
             
             var crtSettings = serializedObject.FindProperty("crtSettings");
@@ -302,11 +364,11 @@ namespace PixelCamera.Editor
             
             var paletteSettings = serializedObject.FindProperty("paletteSettings");
             paletteSettings.FindPropertyRelative("enablePalette").boolValue = true;
-            paletteSettings.FindPropertyRelative("preset").enumValueIndex = (int)PixelCameraRenderFeature.PalettePreset.GameBoy;
+            paletteSettings.FindPropertyRelative("preset").enumValueFlag = (int)PixelCameraRenderFeature.PalettePreset.GameBoy;
             
             var ditherSettings = serializedObject.FindProperty("ditherSettings");
             ditherSettings.FindPropertyRelative("enableDithering").boolValue = true;
-            ditherSettings.FindPropertyRelative("ditherType").enumValueIndex = (int)PixelCameraRenderFeature.DitherType.Bayer2x2;
+            ditherSettings.FindPropertyRelative("ditherType").enumValueFlag = (int)PixelCameraRenderFeature.DitherType.Bayer2x2;
             ditherSettings.FindPropertyRelative("intensity").floatValue = 0.5f;
             
             var crtSettings = serializedObject.FindProperty("crtSettings");
@@ -322,7 +384,7 @@ namespace PixelCamera.Editor
             
             var paletteSettings = serializedObject.FindProperty("paletteSettings");
             paletteSettings.FindPropertyRelative("enablePalette").boolValue = true;
-            paletteSettings.FindPropertyRelative("preset").enumValueIndex = (int)PixelCameraRenderFeature.PalettePreset.NES;
+            paletteSettings.FindPropertyRelative("preset").enumValueFlag = (int)PixelCameraRenderFeature.PalettePreset.NES;
             
             var ditherSettings = serializedObject.FindProperty("ditherSettings");
             ditherSettings.FindPropertyRelative("enableDithering").boolValue = false;

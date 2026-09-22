@@ -108,12 +108,25 @@ namespace PixelCamera
             Binary
         }
 
+        /// <summary>
+        /// Algoritmos de dithering implementados.
+        /// </summary>
+        /// <remarks>
+        /// <b>Floyd-Steinberg foi removido desta versão.</b> O valor existia no
+        /// enum e aparecia no dropdown do Inspector, mas o shader nunca o tratou
+        /// (só Bayer 2x2/4x4/8x8): selecioná-lo deixava o dithering
+        /// silenciosamente desligado. Difusão de erro exige múltiplos passes
+        /// sequenciais e está no roadmap 1.2.0.
+        ///
+        /// Assets criados antes desta correção que tinham Floyd-Steinberg
+        /// selecionado guardam o inteiro 3; o Inspector detecta esse valor órfão
+        /// e o normaliza para Bayer 4x4.
+        /// </remarks>
         public enum DitherType
         {
             Bayer2x2,
             Bayer4x4,
-            Bayer8x8,
-            FloydSteinberg
+            Bayer8x8
         }
 
         [Header("Configurações Gerais")]

@@ -1,8 +1,30 @@
 # 🎯 GUIA VISUAL PASSO A PASSO - Pixel Camera na Unity
 
 ## 📋 Pré-requisitos
-- Unity 2021.3 LTS ou superior
-- Projeto configurado com **Universal Render Pipeline (URP)**
+
+| Requisito | Valor |
+| --- | --- |
+| Unity | **2021.3 LTS** ou superior (funciona até Unity 6.x) |
+| Render Pipeline | **Universal Render Pipeline (URP) 12+** — **obrigatório** |
+| Shader Model | 4.5+ |
+| Active Input Handling | **Input Manager (old)** ou **Both** (para os atalhos F1–F4 do Controller) |
+| Render Graph (Unity 6) | Habilitado em *Project Settings > Graphics > URP* |
+
+### ⛔ Este asset NÃO funciona em Built-in nem HDRP
+
+O Pixel Camera é **exclusivo da URP**. Antes de seguir o tutorial, confira em
+**Edit > Project Settings > Graphics > Scriptable Render Pipeline Settings**:
+
+| O que está no campo | Pipeline | Funciona? |
+| --- | --- | --- |
+| *UniversalRenderPipelineAsset* | URP | ✅ Sim — siga o tutorial |
+| **Vazio (None)** | Built-in | ❌ Não — erros de compilação `CS0234` |
+| *HDRenderPipelineAsset* | HDRP | ❌ Não — o efeito nunca é aplicado |
+
+Motivos técnicos completos no [README raiz](../README.md#por-que-não-built-in--hdrp).
+
+> 💡 Na dúvida, rode **Tools > Pixel Camera > Diagnóstico do Projeto (URP)** — ele diz no Console
+> qual pipeline o projeto está usando e o que falta.
 
 ---
 
@@ -374,10 +396,12 @@ corrigida no código atual (a herança usa `UnityEditor.Editor` qualificado).
 **Problema:** Não aparece "Pixel Camera Render Feature" ao clicar em "Add Renderer Feature"
 
 **Solução:**
-1. Verifique se os scripts compilaram sem erros (Console limpo)
-2. Verifique se `PixelCameraRenderFeature.cs` tem a herança `ScriptableRendererFeature`
-3. Tente: **Assets > Reimport All**
-4. Feche e abra a Unity
+1. Confirme que o projeto usa **URP** (Built-in e HDRP não são suportados — veja os pré-requisitos)
+2. Verifique se os scripts compilaram sem erros (Console limpo) — com erro de compilação o
+   Render Feature **não** aparece na lista
+3. Verifique se `PixelCameraRenderFeature.cs` tem a herança `ScriptableRendererFeature`
+4. Tente: **Assets > Reimport All**
+5. Feche e abra a Unity
 
 ### ❌ "Tela rosa/magenta"
 **Problema:** Tudo aparece rosa na Game View
@@ -385,7 +409,9 @@ corrigida no código atual (a herança usa `UnityEditor.Editor` qualificado).
 **Solução:**
 1. Shader com erro. Verifique o Console
 2. Abra `PixelCameraShader.shader` e procure erros
-3. Verifique se está usando URP (não Built-in)
+3. **Causa mais comum:** o projeto **não está em URP**. O shader tem
+   `Tags { "RenderPipeline" = "UniversalPipeline" }` + `Fallback Off`, então no Built-in e no HDRP
+   ele é descartado e a tela fica magenta
 4. **Edit > Project Settings > Graphics** > Pipeline Asset configurado?
 
 ### ❌ "Não vejo nenhum efeito"
@@ -393,9 +419,58 @@ corrigida no código atual (a herança usa `UnityEditor.Editor` qualificado).
 
 **Solução:**
 1. Verifique se o Render Feature está **habilitado** ✅
-2. Verifique se a Camera está usando o Renderer correto
-3. Na Camera, campo **"Renderer"** deve apontar para `PixelCameraRenderer`
-4. Verifique se o **Render Pass Event** está em `BeforeRenderingPostProcessing`
+2. **Marque a caixa ao lado do nome do Feature** no Renderer — se estiver desmarcada, a URP nem
+   chama `AddRenderPasses`
+3. Verifique se o Feature está no Renderer que a pipeline **usa de fato** (o diagnóstico
+   diferencia "Feature existe" de "Feature no Renderer ativo")
+4. Verifique se a Camera está usando o Renderer correto (campo **"Renderer"** da Camera)
+5. Verifique se o **Render Pass Event** está em `BeforeRenderingPostProcessing`
+6. No **Unity 6**: o **Render Graph** está habilitado em *Project Settings > Graphics > URP*?
+7. Atalho: **Tools > Pixel Camera > Corrigir Automaticamente (Adicionar Render Feature)**
+
+### ❌ "F1–F4 e o scroll não funcionam"
+**Problema:** Os atalhos do `PixelCameraController` não respondem
+
+**Causa:** o Controller usa o **Input Manager legado** (`UnityEngine.Input`).
+
+**Solução:**
+1. **Edit > Project Settings > Player > Active Input Handling**
+2. Mude para **Input Manager (old)** ou **Both**
+3. A Unity vai pedir para reiniciar — aceite
+4. Alternativa: dispense o Controller e chame a API (`SetPixelResolution`, `SetPalettePreset`, …)
+   a partir do seu próprio sistema de input
+
+### ❌ "A imagem ficou quase toda preta / sem os tons do preset"
+**Problema:** Ao usar os presets **GameBoy**, **CGA** ou **Binary**, a imagem perde os tons médios
+e escuros (no Binary, quase tudo vira preto)
+
+**Causa:** bug das versões **até 1.0.3**. `GetPresetPalette` criava uma textura 16×1 preenchendo só
+os slots reais do preset (4, 4 e 2); os restantes ficavam `(0,0,0,0)` = preto, e o `Frag` usava
+`int paletteSize = 16;` fixo — então o preto fantasma vencia a busca para qualquer cor escura/média.
+
+**Corrigido na 1.1.0:** o C# envia o número real de cores da paleta (`_PaletteSize`) e o shader
+compara apenas contra as cores que existem. Os 7 presets agora entregam o visual correto.
+
+**Se você ainda vê o problema:**
+1. Confirme que o pacote está na **1.1.0** (`PixelCamera/package.json` → `"version": "1.1.0"`)
+2. **Assets > Reimport All** — o shader precisa ser recompilado
+3. Se estiver usando uma **paleta custom** importada antes da correção, regenere-a: ela pode ter
+   menos de 16 pixels de largura ou slots em preto
+
+Detalhes em [README → Corrigido na 1.1.0](README.md#corrigido-na-110).
+
+### ❌ "A interface (UI) não fica pixelada"
+**Comportamento esperado:** **Canvas em Screen Space - Overlay** é desenhado depois do pipeline da
+câmara, então não passa pelo efeito. Use **Screen Space - Camera** (apontando para a mesma câmera)
+ou **World Space**.
+
+### ❌ "Floyd-Steinberg sumiu do dropdown de dithering"
+**Esperado a partir da 1.1.0.** O valor existia no enum, mas o shader nunca o tratou — selecioná-lo
+deixava o dithering **silenciosamente desligado**. Ele foi removido para não enganar ninguém.
+
+Se o seu Render Feature tinha Floyd-Steinberg selecionado, o Inspector mostra um aviso amarelo e
+normaliza o valor para **Bayer 4×4**. Difusão de erro real está no roadmap 1.3.0 (exige múltiplos
+passes sequenciais).
 5. Se estiver usando o **Pixel Camera Auto Setup**: arraste o Renderer Asset para o campo
    **"Renderer Asset"** do componente. Até a versão 1.0.1 ele buscava o Render Feature com
    `Object.FindObjectsOfType`, que não encontra ScriptableObjects (o Render Feature é um

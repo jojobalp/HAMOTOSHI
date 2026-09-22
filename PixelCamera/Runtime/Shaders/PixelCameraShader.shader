@@ -39,8 +39,14 @@ Shader "Hidden/PixelCamera"
     float _PaletteEnabled;
     float _ColorCount;
     float _ColorQuantization;
+    // Nº de cores REAL da paleta ativa (preenchido pelo C#). Presets de 4 cores
+    // (GameBoy/CGA) enviam 4, Binary envia 2, presets de 16 cores e paletas
+    // custom enviam 16. Sem isso os slots não usados da textura 16x1 (que ficam
+    // em preto) participavam da busca de cor mais próxima e "sugavam" todos os
+    // tons escuros/médios da imagem.
+    float _PaletteSize;
     float _DitherEnabled;
-    float _DitherType;            // 0 = Bayer2x2, 1 = Bayer4x4, 2 = Bayer8x8, 3 = FloydSteinberg
+    float _DitherType;            // 0 = Bayer2x2, 1 = Bayer4x4, 2 = Bayer8x8
     float _DitherIntensity;
     float _CRTEnabled;
     float _ScanlineIntensity;
@@ -153,6 +159,13 @@ Shader "Hidden/PixelCamera"
         float minDist = 1000.0;
         float3 closestColor = color;
 
+        // Com um único slot não há intervalo para amostrar (a divisão abaixo
+        // seria por zero), então devolve direto a cor desse slot.
+        if (paletteSize <= 1)
+        {
+            return SAMPLE_TEXTURE2D(_CustomPalette, sampler_CustomPalette, float2(0.5 / float(PALETTE_MAX_COLORS), 0.5)).rgb;
+        }
+
         // O limite do loop deve ser constante para o compilador conseguir
         // desenrolar (necessário no d3d11 / feature level 9.3 usado pelo URP).
         for (int i = 0; i < PALETTE_MAX_COLORS; i++)
@@ -170,6 +183,23 @@ Shader "Hidden/PixelCamera"
         }
 
         return closestColor;
+    }
+
+    // Offset do dithering ordenado (Bayer), em (-0.5..+0.5) * intensidade.
+    // Recebe as UVs ORIGINAIS (não as distorcidas pela curvatura CRT) para o
+    // padrão ficar estável e alinhado à tela.
+    float GetDitherOffset(float2 uv)
+    {
+        if (_DitherType < 0.5)      // Bayer2x2
+        {
+            return ApplyBayerDither(uv, _DitherIntensity, 2);
+        }
+        else if (_DitherType < 1.5) // Bayer4x4
+        {
+            return ApplyBayerDither(uv, _DitherIntensity, 4);
+        }
+
+        return ApplyBayerDither(uv, _DitherIntensity, 8); // Bayer8x8
     }
 
     float4 Frag(Varyings input) : SV_Target
@@ -191,41 +221,41 @@ Shader "Hidden/PixelCamera"
         // Amostrar textura
         float4 color = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, uv);
 
+        // Dithering ordenado: o threshold é somado ANTES da quantização e da
+        // busca na paleta, não depois. É isso que faz o dithering alternar entre
+        // as duas cores vizinhas da paleta (comportamento clássico do Bayer
+        // ordered dithering). Somar depois - como era antes - apenas deslocava o
+        // brilho de uma cor já escolhida, gerando tons que não existem na paleta.
+        // A escala pelo número de níveis mantém a intensidade com peso
+        // perceptível parecido em qualquer configuração.
+        float3 ditheredColor = color.rgb;
+        if (_DitherEnabled > 0.5)
+        {
+            float levels = max(2.0, _ColorCount);
+            ditheredColor = saturate(color.rgb + GetDitherOffset(input.uv) / levels);
+        }
+
         // Aplicar paleta limitada
         if (_PaletteEnabled > 0.5)
         {
             // Primeiro quantizar
-            float3 quantized = QuantizeColor(color.rgb, int(_ColorCount));
-            
-            // Depois encontrar cor mais próxima na paleta
-            int paletteSize = 16; // Default para presets
-            color.rgb = FindClosestPaletteColor(quantized, paletteSize);
-            
-            // Blend com quantização original
-            color.rgb = lerp(color.rgb, quantized, _ColorQuantization);
-        }
+            float3 quantized = QuantizeColor(ditheredColor, int(_ColorCount));
 
-        // Aplicar dithering
-        if (_DitherEnabled > 0.5)
+            // Depois encontrar a cor mais próxima na paleta, usando o número REAL
+            // de cores da paleta ativa (_PaletteSize vem do C#). Antes era fixo
+            // em 16, o que fazia os slots não usados da textura 16x1 - que ficam
+            // em preto - competirem na busca e dominarem os tons escuros/médios.
+            int paletteSize = clamp(int(_PaletteSize), 1, PALETTE_MAX_COLORS);
+            float3 paletteColor = FindClosestPaletteColor(quantized, paletteSize);
+
+            // Blend com a cor quantizada (o dithering aparece como alternância
+            // entre a cor da paleta e a quantizada)
+            color.rgb = lerp(paletteColor, quantized, _ColorQuantization);
+        }
+        else
         {
-            float dither = 0.0;
-            
-            if (_DitherType < 0.5) // Bayer2x2
-            {
-                dither = ApplyBayerDither(uv, _DitherIntensity, 2);
-            }
-            else if (_DitherType < 1.5) // Bayer4x4
-            {
-                dither = ApplyBayerDither(uv, _DitherIntensity, 4);
-            }
-            else if (_DitherType < 2.5) // Bayer8x8
-            {
-                dither = ApplyBayerDither(uv, _DitherIntensity, 8);
-            }
-            // FloydSteinberg seria mais complexo e requer múltiplas passes
-            // Por simplicidade, usamos apenas Bayer aqui
-            
-            color.rgb += dither;
+            // Paleta desligada: o dithering continua valendo, aplicado na cor.
+            color.rgb = ditheredColor;
         }
 
         // Aplicar efeitos CRT
