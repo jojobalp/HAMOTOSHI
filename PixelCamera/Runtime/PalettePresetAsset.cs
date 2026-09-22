@@ -8,6 +8,12 @@ namespace PixelCamera
     [CreateAssetMenu(fileName = "NewPalettePreset", menuName = "Pixel Camera/Palette Preset")]
     public class PalettePresetAsset : ScriptableObject
     {
+        /// <summary>
+        /// Número máximo de cores de uma paleta (limite do shader e da textura
+        /// 16x1 que ele amostra).
+        /// </summary>
+        public const int MaxColors = PaletteUtility.PaletteTextureWidth;
+
         public string paletteName = "Custom Palette";
         
         [Tooltip("Cores da paleta (máximo 16)")]
@@ -19,29 +25,29 @@ namespace PixelCamera
         public string description;
         
         /// <summary>
-        /// Converte para Texture2D para uso no shader
+        /// Converte para Texture2D no formato que o shader espera: 16x1, Point,
+        /// Clamp e com os 16 slots preenchidos. Se o preset tem menos de 16
+        /// cores, os slots excedentes repetem as cores existentes — antes a
+        /// textura saía com a largura do número de cores e o resto ficava em
+        /// preto/Repeat, o que corrompia a busca de cor mais próxima.
         /// </summary>
         public Texture2D ToTexture()
         {
-            int size = Mathf.Min(colors.Length, 16);
-            var texture = new Texture2D(size, 1, TextureFormat.RGBA32, false);
-            texture.filterMode = FilterMode.Point;
-            
-            for (int i = 0; i < size; i++)
-            {
-                texture.SetPixel(i, 0, colors[i]);
-            }
-            
-            texture.Apply();
-            return texture;
+            return PaletteUtility.CreatePaletteTexture(colors);
         }
         
         /// <summary>
-        /// Importa cores de uma Texture2D
+        /// Importa cores de uma Texture2D (lê a primeira linha, até 16 pixels).
         /// </summary>
         public void FromTexture(Texture2D source)
         {
-            int size = Mathf.Min(source.width, 16);
+            if (source == null)
+            {
+                Debug.LogWarning("[PixelCamera] FromTexture recebeu uma textura nula.");
+                return;
+            }
+
+            int size = Mathf.Clamp(source.width, 1, PalettePresetAsset.MaxColors);
             colors = new Color[size];
             
             for (int i = 0; i < size; i++)

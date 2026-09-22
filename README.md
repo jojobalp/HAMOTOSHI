@@ -2,9 +2,14 @@
 
 ## PixelCamera
 
-Efeito de câmera retrô para **Unity URP**: pixelização, paletas limitadas, dithering Bayer e CRT.
+Efeito de câmera retrô para **Unity URP**: pixelização, paletas limitadas, dithering Bayer ordenado
+e CRT.
 
-> **Pacote:** `com.pixelcamera.unity` · **Versão atual:** 1.0.3 · **Unity:** 2021.3 LTS ou superior
+> **Novidade na 1.1.0:** os presets de paleta com menos de 16 cores (GameBoy, CGA e **Binary**) e o
+> dithering foram corrigidos — ambos tinham comportamento visual errado nas versões anteriores.
+> Veja [`PixelCamera/CHANGELOG.md`](PixelCamera/CHANGELOG.md).
+
+> **Pacote:** `com.pixelcamera.unity` · **Versão atual:** 1.1.0 · **Unity:** 2021.3 LTS ou superior
 
 ---
 
@@ -136,4 +141,4 @@ Decisão técnica documentada de propósito — não é uma limitação acidenta
 
 ## 📝 Licença
 
-A definir — veja a seção de licença em [`PixelCamera/README.md`](PixelCamera/README.md).
+**MIT License** — veja [`LICENSE`](LICENSE). Use livremente em projetos pessoais e comerciais.

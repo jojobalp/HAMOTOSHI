@@ -1,8 +1,8 @@
 {
     "name": "com.pixelcamera.unity",
-    "version": "1.0.3",
+    "version": "1.1.0",
     "displayName": "Pixel Camera (URP)",
-    "description": "Efeito de câmera pixel art para a Universal Render Pipeline (URP). Pixelização com upscale em filtro point, paletas limitadas (até 16 cores), dithering Bayer 2x2/4x4/8x8 e efeito CRT (scanlines, bloom, curvatura e vinheta). Requer URP 12+ (Unity 2021.3 LTS a Unity 6.x). Não suporta Built-in Render Pipeline nem HDRP.",
+    "description": "Efeito de câmera pixel art para a Universal Render Pipeline (URP). Pixelização com upscale em filtro point, paletas limitadas (até 16 cores, 7 presets), dithering Bayer ordenado 2x2/4x4/8x8 e efeito CRT (scanlines, bloom, curvatura e vinheta). Requer URP 12+ (Unity 2021.3 LTS a Unity 6.x). Não suporta Built-in Render Pipeline nem HDRP.",
     "unity": "2021.3",
     "unityRelease": "0f1",
     "dependencies": {

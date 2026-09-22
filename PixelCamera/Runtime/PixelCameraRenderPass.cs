@@ -33,6 +33,7 @@ namespace PixelCamera
         private static readonly int CustomPalette = Shader.PropertyToID("_CustomPalette");
         private static readonly int ColorCount = Shader.PropertyToID("_ColorCount");
         private static readonly int ColorQuantization = Shader.PropertyToID("_ColorQuantization");
+        private static readonly int PaletteSize = Shader.PropertyToID("_PaletteSize");
         private static readonly int DitherEnabled = Shader.PropertyToID("_DitherEnabled");
         private static readonly int DitherType = Shader.PropertyToID("_DitherType");
         private static readonly int DitherIntensity = Shader.PropertyToID("_DitherIntensity");
@@ -49,6 +50,14 @@ namespace PixelCamera
         // Cache de paletas (evita criar uma textura nova a cada frame)
         private readonly Dictionary<PixelCameraRenderFeature.PalettePreset, Texture2D> m_PresetPalettes =
             new Dictionary<PixelCameraRenderFeature.PalettePreset, Texture2D>();
+
+        // Nº de cores REAL de cada preset cacheado. O shader precisa disso para
+        // não comparar contra os slots não usados da textura 16x1.
+        private readonly Dictionary<PixelCameraRenderFeature.PalettePreset, int> m_PresetPaletteSizes =
+            new Dictionary<PixelCameraRenderFeature.PalettePreset, int>();
+
+        // Uma textura de paleta custom é sempre interpretada como 16 slots.
+        private const int k_CustomPaletteSize = 16;
 
 #if UNITY_6000_0_OR_NEWER
         // Dados passados para as render functions do Render Graph
@@ -139,16 +148,24 @@ namespace PixelCamera
             m_Material.SetFloat(PaletteEnabled, m_Feature.paletteSettings.enablePalette ? 1.0f : 0.0f);
 
             // Paleta
+            int paletteSize;
             if (m_Feature.paletteSettings.customPalette != null)
             {
                 m_Material.SetTexture(CustomPalette, m_Feature.paletteSettings.customPalette);
+                paletteSize = k_CustomPaletteSize;
             }
             else
             {
                 // Usar preset de paleta
-                var presetPalette = GetPresetPalette(m_Feature.paletteSettings.preset);
+                var presetPalette = GetPresetPalette(m_Feature.paletteSettings.preset, out paletteSize);
                 m_Material.SetTexture(CustomPalette, presetPalette);
             }
+
+            // Informa ao shader quantas cores a paleta ativa realmente tem.
+            // Sem isso ele assumia 16 e os slots vazios (pretos) da textura
+            // dominavam os tons escuros/médios — o preset Binary, por exemplo,
+            // ficava quase todo preto em vez de preto e branco.
+            m_Material.SetFloat(PaletteSize, Mathf.Clamp(paletteSize, 1, 16));
 
             m_Material.SetFloat(ColorCount, m_Feature.paletteSettings.colorCount);
             m_Material.SetFloat(ColorQuantization, m_Feature.paletteSettings.colorQuantization);
@@ -369,15 +386,27 @@ namespace PixelCamera
             }
         }
 
-        private Texture2D GetPresetPalette(PixelCameraRenderFeature.PalettePreset preset)
+        /// <summary>
+        /// Retorna a textura de paleta (16x1, cacheada) do preset e, em
+        /// <paramref name="paletteSize"/>, o número de cores que o preset define
+        /// de fato. O shader usa esse número para não comparar contra os slots
+        /// não preenchidos da textura.
+        /// </summary>
+        private Texture2D GetPresetPalette(PixelCameraRenderFeature.PalettePreset preset, out int paletteSize)
         {
             // Reutilizar a textura de paleta (criar uma nova a cada frame causaria leak de memória)
             if (m_PresetPalettes.TryGetValue(preset, out var cached) && cached != null)
+            {
+                paletteSize = m_PresetPaletteSizes.TryGetValue(preset, out var cachedSize) ? cachedSize : 16;
                 return cached;
+            }
 
             // Criar paletas programaticamente
             var palette = new Texture2D(16, 1, TextureFormat.RGBA32, false);
             palette.filterMode = FilterMode.Point;
+            // Clamp (e não o padrão Repeat) para a amostragem nunca dar a volta
+            // na textura.
+            palette.wrapMode = TextureWrapMode.Clamp;
 
             Color[] colors;
 
@@ -496,7 +525,9 @@ namespace PixelCamera
 
             palette.Apply();
 
+            paletteSize = Mathf.Clamp(colors.Length, 1, 16);
             m_PresetPalettes[preset] = palette;
+            m_PresetPaletteSizes[preset] = paletteSize;
             return palette;
         }
     }

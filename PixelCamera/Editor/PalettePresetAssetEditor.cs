@@ -114,42 +114,68 @@ namespace PixelCamera.Editor
             }
         }
         
+        /// <summary>
+        /// Importa as cores de um PNG/JPEG para o preset.
+        /// </summary>
+        /// <remarks>
+        /// Mantém o array com <b>16 slots</b> e preenche os excedentes repetindo
+        /// as cores importadas. Antes o array era truncado para a largura da
+        /// imagem, o que fazia <c>ToTexture()</c> gerar slots vazios (pretos) que
+        /// corrompiam a busca de cor mais próxima no shader.
+        /// </remarks>
         private void ImportFromTexture()
         {
-            string path = EditorUtility.OpenFilePanel("Importar Textura", Application.dataPath, "png,jpg");
+            // LoadImage decodifica apenas PNG e JPEG.
+            string path = EditorUtility.OpenFilePanel("Importar Textura", Application.dataPath, "png,jpg,jpeg");
             
             if (string.IsNullOrEmpty(path)) return;
             
             byte[] fileData = System.IO.File.ReadAllBytes(path);
-            var texture = new Texture2D(2, 2);
-            texture.LoadImage(fileData);
+            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+
+            if (!texture.LoadImage(fileData))
+            {
+                EditorUtility.DisplayDialog(
+                    "Formato não suportado",
+                    "Não foi possível decodificar o arquivo.\n\nFormatos suportados: PNG e JPEG.",
+                    "OK");
+                DestroyImmediate(texture);
+                return;
+            }
             
             var colorsProp = serializedObject.FindProperty("colors");
-            int count = Mathf.Min(texture.width, 16);
-            colorsProp.arraySize = count;
+            int count = Mathf.Clamp(texture.width, 1, PalettePresetAsset.MaxColors);
+            colorsProp.arraySize = PalettePresetAsset.MaxColors;
             
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < colorsProp.arraySize; i++)
             {
-                colorsProp.GetArrayElementAtIndex(i).colorValue = texture.GetPixel(i, 0);
+                // Repete ciclicamente quando a imagem tem menos cores que 16.
+                Color c = texture.GetPixel(i % count, 0);
+                c.a = 1.0f;
+                colorsProp.GetArrayElementAtIndex(i).colorValue = c;
             }
             
             DestroyImmediate(texture);
-            Debug.Log("[PalettePreset] Textura importada com sucesso!");
+            Debug.Log($"[PalettePreset] Textura importada com sucesso ({count} cores, 16 slots preenchidos)!");
         }
         
+        /// <summary>
+        /// Exporta o preset como PNG 16x1, no formato que o shader espera.
+        /// </summary>
         private void ExportAsPNG()
         {
             var colorsProp = serializedObject.FindProperty("colors");
-            int count = Mathf.Min(colorsProp.arraySize, 16);
-            
-            var texture = new Texture2D(count, 1, TextureFormat.RGBA32, false);
-            texture.filterMode = FilterMode.Point;
-            
+            int count = Mathf.Clamp(colorsProp.arraySize, 1, PalettePresetAsset.MaxColors);
+
+            var colors = new System.Collections.Generic.List<Color>(count);
             for (int i = 0; i < count; i++)
             {
-                texture.SetPixel(i, 0, colorsProp.GetArrayElementAtIndex(i).colorValue);
+                colors.Add(colorsProp.GetArrayElementAtIndex(i).colorValue);
             }
-            texture.Apply();
+
+            // 16x1, Point, Clamp e slots preenchidos por repetição — o arquivo
+            // pode ser arrastado direto para o campo "Custom Palette".
+            var texture = PaletteUtility.CreatePaletteTexture(colors);
             
             string path = EditorUtility.SaveFilePanel("Exportar PNG", Application.dataPath, "palette", "png");
             
@@ -157,7 +183,8 @@ namespace PixelCamera.Editor
             {
                 byte[] pngData = texture.EncodeToPNG();
                 System.IO.File.WriteAllBytes(path, pngData);
-                Debug.Log($"[PalettePreset] Exportado: {path}");
+                Debug.Log($"[PalettePreset] Exportado ({PaletteUtility.PaletteTextureWidth}x1): {path}");
+                AssetDatabase.Refresh();
             }
             
             DestroyImmediate(texture);
@@ -166,9 +193,11 @@ namespace PixelCamera.Editor
         private void GenerateRandom()
         {
             var colorsProp = serializedObject.FindProperty("colors");
-            int count = Mathf.Min(colorsProp.arraySize, 16);
-            
-            for (int i = 0; i < count; i++)
+            // Preenche os 16 slots: deixar slots em preto corrompe a busca de cor
+            // mais próxima no shader.
+            colorsProp.arraySize = PalettePresetAsset.MaxColors;
+
+            for (int i = 0; i < colorsProp.arraySize; i++)
             {
                 colorsProp.GetArrayElementAtIndex(i).colorValue = Random.ColorHSV(0f, 1f, 0.3f, 1f, 0.3f, 1f);
             }
@@ -177,14 +206,16 @@ namespace PixelCamera.Editor
         private void GenerateGradient()
         {
             var colorsProp = serializedObject.FindProperty("colors");
-            int count = Mathf.Min(colorsProp.arraySize, 16);
+            colorsProp.arraySize = PalettePresetAsset.MaxColors;
+            int count = colorsProp.arraySize;
             
             Color start = Random.ColorHSV(0f, 1f, 0.3f, 1f, 0.3f, 1f);
             Color end = Random.ColorHSV(0f, 1f, 0.3f, 1f, 0.3f, 1f);
             
             for (int i = 0; i < count; i++)
             {
-                float t = i / (float)(count - 1);
+                // Mathf.Max evita divisão por zero quando count == 1.
+                float t = i / (float)Mathf.Max(1, count - 1);
                 colorsProp.GetArrayElementAtIndex(i).colorValue = Color.Lerp(start, end, t);
             }
         }

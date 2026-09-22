@@ -311,20 +311,33 @@ namespace PixelCamera.Editor
             EditorGUI.DrawRect(new Rect(previewRect.x + previewWidth, previewRect.y, 1, previewHeight), Color.white);
         }
 
+        /// <summary>
+        /// Exporta a paleta como PNG.
+        /// </summary>
+        /// <remarks>
+        /// O arquivo sai sempre com <b>16 pixels de largura</b>, mesmo que o
+        /// "Tamanho da Paleta" seja menor: os slots excedentes repetem as cores
+        /// existentes. Isso torna o PNG resultante utilizável diretamente no
+        /// campo <b>Custom Palette</b>, já que o shader percorre os 16 slots da
+        /// textura. Exportar com a largura menor gerava um arquivo que, arrastado
+        /// para o Render Feature, produzia cores erradas.
+        /// </remarks>
         private void ExportPalette()
         {
             string path = EditorUtility.SaveFilePanel("Exportar Paleta", Application.dataPath, "palette", "png");
             
             if (string.IsNullOrEmpty(path)) return;
-            
-            var texture = new Texture2D(paletteSize, 1, TextureFormat.RGBA32, false);
-            texture.filterMode = FilterMode.Point;
-            
-            for (int i = 0; i < paletteSize; i++)
+
+            int size = Mathf.Clamp(paletteSize, 1, PaletteUtility.PaletteTextureWidth);
+            var colors = new System.Collections.Generic.List<Color>(size);
+            for (int i = 0; i < size; i++)
             {
-                texture.SetPixel(i, 0, paletteColors[i]);
+                colors.Add(paletteColors[i]);
             }
-            texture.Apply();
+
+            // Cria a textura no formato exato que o shader espera (16x1, Point,
+            // Clamp, slots preenchidos por repetição).
+            var texture = PaletteUtility.CreatePaletteTexture(colors);
             
             byte[] pngData = texture.EncodeToPNG();
             System.IO.File.WriteAllBytes(path, pngData);
@@ -332,20 +345,37 @@ namespace PixelCamera.Editor
             DestroyImmediate(texture);
             
             AssetDatabase.Refresh();
-            Debug.Log($"[Palette Editor] Paleta exportada: {path}");
+            Debug.Log($"[Palette Editor] Paleta exportada ({PaletteUtility.PaletteTextureWidth}x1): {path}");
             
-            EditorUtility.DisplayDialog("Sucesso!", $"Paleta salva em:\n{path}", "OK");
+            EditorUtility.DisplayDialog(
+                "Sucesso!",
+                $"Paleta salva em:\n{path}\n\n" +
+                $"O arquivo tem {PaletteUtility.PaletteTextureWidth}x1 pixels — pode ser arrastado " +
+                "direto para o campo 'Custom Palette'.\n\n" +
+                "Ao importar no Unity, ajuste: Filter Mode = Point, Wrap Mode = Clamp, " +
+                "Read/Write Enabled e sem compressão.",
+                "OK");
         }
 
         private void ImportPalette()
         {
-            string path = EditorUtility.OpenFilePanel("Importar Paleta", Application.dataPath, "png,jpg,bmp");
+            // LoadImage decodifica apenas PNG e JPEG — BMP não é suportado.
+            string path = EditorUtility.OpenFilePanel("Importar Paleta", Application.dataPath, "png,jpg,jpeg");
             
             if (string.IsNullOrEmpty(path)) return;
             
             byte[] fileData = System.IO.File.ReadAllBytes(path);
-            var texture = new Texture2D(2, 2);
-            texture.LoadImage(fileData);
+            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+
+            if (!texture.LoadImage(fileData))
+            {
+                EditorUtility.DisplayDialog(
+                    "Formato não suportado",
+                    "Não foi possível decodificar o arquivo.\n\nFormatos suportados: PNG e JPEG.",
+                    "OK");
+                DestroyImmediate(texture);
+                return;
+            }
             
             paletteSize = Mathf.Clamp(texture.width, 2, 16);
             

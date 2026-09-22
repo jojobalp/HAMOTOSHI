@@ -444,29 +444,33 @@ corrigida no código atual (a herança usa `UnityEditor.Editor` qualificado).
 **Problema:** Ao usar os presets **GameBoy**, **CGA** ou **Binary**, a imagem perde os tons médios
 e escuros (no Binary, quase tudo vira preto)
 
-**Causa:** limitação conhecida da versão 1.0.3. `GetPresetPalette` cria uma textura **16×1** mas
-preenche só os slots reais do preset (4, 4 e 2 respectivamente); os slots restantes ficam
-`(0,0,0,0)` = preto. O shader compara a cor do pixel contra **os 16 slots**
-(`int paletteSize = 16;` fixo no `Frag`), então o preto fantasma vence para qualquer cor
-escura/média.
+**Causa:** bug das versões **até 1.0.3**. `GetPresetPalette` criava uma textura 16×1 preenchendo só
+os slots reais do preset (4, 4 e 2); os restantes ficavam `(0,0,0,0)` = preto, e o `Frag` usava
+`int paletteSize = 16;` fixo — então o preto fantasma vencia a busca para qualquer cor escura/média.
 
-**Solução (workaround):**
-1. Use um preset de **16 cores**: PICO-8, NES, GB Color ou Grayscale
-2. Ou crie uma paleta custom **16×1** repetindo as suas cores reais nos 16 slots
-   (ex.: para o visual GameBoy de 4 tons, use 4 slots por tom)
+**Corrigido na 1.1.0:** o C# envia o número real de cores da paleta (`_PaletteSize`) e o shader
+compara apenas contra as cores que existem. Os 7 presets agora entregam o visual correto.
 
-Detalhes em [README → Limitações conhecidas](README.md#limitações-conhecidas).
+**Se você ainda vê o problema:**
+1. Confirme que o pacote está na **1.1.0** (`PixelCamera/package.json` → `"version": "1.1.0"`)
+2. **Assets > Reimport All** — o shader precisa ser recompilado
+3. Se estiver usando uma **paleta custom** importada antes da correção, regenere-a: ela pode ter
+   menos de 16 pixels de largura ou slots em preto
+
+Detalhes em [README → Corrigido na 1.1.0](README.md#corrigido-na-110).
 
 ### ❌ "A interface (UI) não fica pixelada"
 **Comportamento esperado:** **Canvas em Screen Space - Overlay** é desenhado depois do pipeline da
 câmara, então não passa pelo efeito. Use **Screen Space - Camera** (apontando para a mesma câmera)
 ou **World Space**.
 
-### ❌ "Selecionei Floyd-Steinberg e nada aconteceu"
-**Comportamento esperado:** o dithering **Floyd-Steinberg não está implementado** nesta versão.
-O valor existe no enum e aparece no dropdown, mas o shader só trata Bayer 2×2/4×4/8×8 — selecionar
-Floyd-Steinberg equivale a dithering desligado. Está no roadmap 1.2.0 (difusão de erro exige
-múltiplos passes).
+### ❌ "Floyd-Steinberg sumiu do dropdown de dithering"
+**Esperado a partir da 1.1.0.** O valor existia no enum, mas o shader nunca o tratou — selecioná-lo
+deixava o dithering **silenciosamente desligado**. Ele foi removido para não enganar ninguém.
+
+Se o seu Render Feature tinha Floyd-Steinberg selecionado, o Inspector mostra um aviso amarelo e
+normaliza o valor para **Bayer 4×4**. Difusão de erro real está no roadmap 1.3.0 (exige múltiplos
+passes sequenciais).
 5. Se estiver usando o **Pixel Camera Auto Setup**: arraste o Renderer Asset para o campo
    **"Renderer Asset"** do componente. Até a versão 1.0.1 ele buscava o Render Feature com
    `Object.FindObjectsOfType`, que não encontra ScriptableObjects (o Render Feature é um

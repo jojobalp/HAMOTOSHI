@@ -3,7 +3,7 @@
 Sistema de câmera pixel art para **Unity URP**: pixelização, paletas limitadas, dithering Bayer e
 efeito CRT — tudo num único Render Feature, com controles individuais e API em runtime.
 
-> **Pacote:** `com.pixelcamera.unity` · **Versão:** 1.0.3 · **Unity:** 2021.3 LTS+ · **Pipeline:** URP 12+
+> **Pacote:** `com.pixelcamera.unity` · **Versão:** 1.1.0 · **Unity:** 2021.3 LTS+ · **Pipeline:** URP 12+
 
 ---
 
@@ -44,7 +44,7 @@ uma. Consoles devem ser validados individualmente.
 - **Pixelização** com resolução configurável em runtime (16×16 até 1280×720)
 - **Paletas limitadas** com 7 presets: GameBoy, NES, CGA, PICO-8, GB Color, Grayscale, Binary
 - **Paleta custom** via textura 16×1, gerador aleatório ou `PalettePresetAsset` (ScriptableObject)
-- **Dithering** Bayer 2×2, 4×4 e 8×8 com intensidade configurável
+- **Dithering ordenado** Bayer 2×2, 4×4 e 8×8, com o threshold aplicado antes do lookup da paleta
 - **Efeito CRT** com controles individuais: scanlines, bloom/glow, curvatura e vinheta
 - **Snap to Pixel Grid** para alinhamento de pixels
 - **Todos os efeitos toggáveis** individualmente (efeito desligado não é processado no shader)
@@ -173,23 +173,34 @@ pixelCamera.SetDithering(true);
 | Grayscale | 16 tons de cinza |
 | Binary | 2 cores (preto e branco) |
 
-> ⚠️ **Os presets de menos de 16 cores têm um comportamento conhecido incorreto.** Leia
-> [Limitações conhecidas → Paletas com menos de 16 cores](#1-paletas-com-menos-de-16-cor-gameboy-cga-binary).
+Todos os 7 presets funcionam corretamente, **inclusive os de menos de 16 cores**: desde a 1.1.0 o
+C# informa ao shader o número real de cores da paleta ativa (`_PaletteSize`), então os slots não
+usados da textura 16×1 não participam mais da busca de cor mais próxima.
+
+> Nas versões até 1.0.3 os presets **GameBoy**, **CGA** e **Binary** ficavam dominados por preto
+> (o shader assumia 16 cores e os slots vazios da textura competiam na busca). Corrigido — veja
+> [Corrigido na 1.1.0](#corrigido-na-110).
 
 ### Como o shader lê a paleta (importante)
 
-A paleta é uma **textura 16×1** (`RGBA32`, sem mipmaps) e o shader percorre **sempre os 16 slots**:
+A paleta é uma **textura 16×1** (`RGBA32`, sem mipmaps). O loop do shader tem limite máximo de 16
+iterações, mas **para no número real de cores** informado pelo C#:
 
 ```hlsl
-for (int i = 0; i < 16; i++) { ... }   // PALETTE_MAX_COLORS
+int paletteSize = clamp(int(_PaletteSize), 1, PALETTE_MAX_COLORS);
+for (int i = 0; i < PALETTE_MAX_COLORS; i++) { if (i >= paletteSize) break; ... }
 ```
 
-Portanto, ao criar uma paleta custom:
+Ao criar uma paleta custom **à mão**:
 
 - Use **exatamente 16 pixels de largura × 1 de altura**.
 - `Filter Mode = Point`, `Wrap Mode = Clamp`, **mipmaps desligados**, sem compressão.
-- Se a sua paleta tem menos de 16 cores, **preencha os slots restantes repetindo cores existentes**
-  (não deixe em preto/transparente — slots vazios participam da busca de cor mais próxima).
+- Preencha os 16 slots (repetindo cores se tiver menos de 16) e marque **Read/Write Enabled** se for
+  usá-la com as ferramentas de extração.
+
+> Uma paleta custom é sempre interpretada como tendo **16 cores**. Se você quer um número menor de
+> cores distintas, prefira um `PalettePresetAsset` ou reduza `colorCount` — as ferramentas do pacote
+> já preenchem os slots por repetição para você.
 
 ### Fontes de paleta custom
 
@@ -197,8 +208,8 @@ Portanto, ao criar uma paleta custom:
 | --- | --- |
 | Editor visual | **Tools > Pixel Camera > Palette Editor** (grid editável, gradiente, temas, export/import PNG) |
 | ScriptableObject | **Assets > Create > Pixel Camera > Palette Preset** + `preset.ToTexture()` |
-| Gerador aleatório | `PaletteUtility.CreateRandomPalette(16, seed: 42)` |
-| Amostragem de imagem | `PaletteUtility.ExtractPaletteFromTexture(source, maxColors: 16)` — veja a limitação em [`FEATURES.md`](FEATURES.md) |
+| Gerador aleatório | `PaletteUtility.CreateRandomPalette(16, seed: 42)` — cores em HSV, seed reproduzível |
+| Extração de imagem | `PaletteUtility.ExtractPaletteFromTexture(source, maxColors: 16)` — requer *Read/Write Enabled* na textura de origem |
 
 > Formatos de arquivo suportados para **carregar** paleta: **PNG e JPEG**
 > (`Texture2D.LoadImage`). BMP e outros formatos **não** são suportados.
@@ -240,9 +251,13 @@ Implementados: `Bayer2x2` (padrão grande, mais retrô), `Bayer4x4` (equilibrado
 (fino/suave). **`FloydSteinberg` aparece no dropdown mas não está implementado** — selecioná-lo
 equivale a dithering desligado.
 
-O dithering é uma **modulação de brilho pós-quantização** (`color.rgb += (threshold-0.5)*intensity`),
-não uma difusão de erro nem um re-snap para a paleta. É um efeito estilizado, não um dithering
-ordenado "correto" no sentido clássico.
+É **dithering ordenado de verdade**: o threshold de Bayer é somado à cor **antes** da quantização e
+do lookup na paleta, escalado pelo número de níveis (`offset / colorCount`). O resultado é a
+alternância clássica entre as duas cores vizinhas da paleta — e não tons intermediários que não
+existem nela.
+
+O padrão é calculado sobre as UVs **originais** (não as distorcidas pela curvatura CRT), então fica
+estável e alinhado à tela. **Não** há difusão de erro (Floyd-Steinberg) — veja as limitações.
 
 ### CRT
 
@@ -287,65 +302,83 @@ bloom physically-based.
 
 ## ⚠️ Limitações conhecidas
 
-Leia antes de comprar/usar. Nada aqui é bug de configuração — são limites reais da versão 1.0.3.
+Leia antes de comprar/usar. Nada aqui é bug de configuração — são limites reais da versão 1.1.0.
 
-### 1. Paletas com menos de 16 cor (GameBoy, CGA, Binary)
-
-`FindClosestPaletteColor` percorre sempre os 16 slots da textura, mas `GetPresetPalette` só preenche
-os slots reais do preset — o restante fica `(0,0,0,0)`, ou seja, **preto**. Como o preto fantasma
-participa da comparação de distância, ele "vence" para qualquer cor escura ou média.
-
-Efeito prático: **Binary** tende a produzir uma imagem quase toda preta (não preto e branco),
-e **GameBoy**/**CGA** perdem os tons escuros/médios. Os presets de 16 cores (NES, PICO-8, GB Color,
-Grayscale) **não** são afetados.
-
-*Workaround:* use um preset de 16 cores, ou crie uma paleta custom 16×1 preenchendo os slots
-sobrantes com repetições das suas cores reais.
-
-### 2. Máximo de 16 cores
+### 1. Máximo de 16 cores
 
 Limite do lookup no shader (`PALETTE_MAX_COLORS 16`, textura de paleta 16×1). O `colorCount` do
-Inspector aceita até 256, mas isso só afeta a pré-quantização — nunca haverá mais de 16 cores
+Inspector aceita até 256, mas isso só afeta a **pré-quantização** — nunca haverá mais de 16 cores
 distintas vindas da paleta.
 
-### 3. `FloydSteinberg` não implementado
+### 2. Floyd-Steinberg (difusão de erro) não existe
 
-O valor existe no enum e aparece no dropdown, mas o shader só trata Bayer 2/4/8. Difusão de erro
-exigiria múltiplos passes (está no roadmap).
+O dithering disponível é o **Bayer ordenado** 2×2, 4×4 e 8×8. Difusão de erro exige múltiplos passes
+sequenciais e está no roadmap 1.3.0.
 
-### 4. `PaletteUtility.ExtractPaletteFromTexture` é amostragem aleatória
+> Até a versão 1.0.3 o valor `FloydSteinberg` existia no enum e aparecia no dropdown, mas o shader
+> nunca o tratou — selecioná-lo deixava o dithering silenciosamente desligado. Ele foi **removido**
+> na 1.1.0; assets antigos que tinham esse valor são detectados no Inspector e normalizados para
+> Bayer 4×4.
 
-Apesar do nome, não há quantização nem clustering: o método sorteia até 1000 pixels da imagem e
-guarda os primeiros `maxColors` distintos num `HashSet<Color>`. Como a comparação é em float
-`RGBA`, quase todo pixel é "único", então o resultado são **N pixels aleatórios da imagem**, não a
-paleta representativa dela. Os slots não preenchidos ficam pretos (limitação 1).
-Não use isso esperando "extrair a paleta" de uma sprite — use o **Palette Editor**.
+### 3. A textura de paleta precisa ter exatamente 16×1
 
-### 5. UI não é afetada
+O shader percorre os 16 slots. Se você importar uma textura mais estreita, os slots além da largura
+não correspondem às suas cores. Use `Filter Mode = Point`, `Wrap Mode = Clamp`, sem mipmaps e sem
+compressão.
+
+Todas as ferramentas do pacote já produzem esse formato (presets, `PaletteUtility`,
+`PalettePresetAsset.ToTexture()`, export do Palette Editor), preenchendo os slots excedentes por
+**repetição** das cores reais.
+
+### 4. UI não é afetada
 
 O efeito é aplicado na cor da câmera dentro do pipeline. **Canvas em *Screen Space - Overlay* não é
 pixelado.** Para pixelar a UI junto, use *Screen Space - Camera* na mesma câmera (ou *World Space*).
 
-### 6. `PixelCameraController` usa Input Manager legado
+### 5. `PixelCameraController` usa Input Manager legado
 
 Se o projeto estiver com *Active Input Handling* = **Input System Package (new)** exclusivo, as
 chamadas `Input.GetKeyDown`/`Input.mouseScrollDelta` não funcionam (e podem logar exceção).
 Nesse caso controle o efeito pela API do `PixelCameraRenderFeature` ou pelo seu próprio input.
 
-### 7. Texturas de paleta geradas em runtime usam Wrap = Repeat
-
-`PaletteUtility` e `PalettePresetAsset.ToTexture()` criam `Texture2D` definindo apenas
-`filterMode = Point`; o `wrapMode` fica no padrão (**Repeat**), não *Clamp*. Combinado com a
-limitação 1, amostras fora do intervalo útil podem voltar ao início da textura.
-
-### 8. Curvatura CRT recorta as bordas
+### 6. Curvatura CRT recorta as bordas
 
 Com `curvatureIntensity` alto, as UVs saem de `[0,1]` e o shader devolve preto — é intencional
 (borda de tubo), mas pode cortar conteúdo importante. Compense com FOV/enquadramento.
 
+### 7. Bloom do CRT é uma aproximação cara
+
+Box de 5×5 amostras da textura de origem (25 samples por pixel) quando ativo. Não é bloom
+physically-based e é o efeito mais pesado do pacote.
+
+### 8. Scanlines dependem da resolução configurada
+
+São calculadas sobre `_ScreenParams.y` da textura de **baixa resolução**, então a espessura
+percebida muda conforme a resolução de pixelização.
+
 ### 9. Sem suporte a Built-in e HDRP
 
 Veja a seção [Compatibilidade](#compatibilidade).
+
+---
+
+## 🔧 Corrigido na 1.1.0
+
+Problemas reais das versões anteriores que **não** existem mais:
+
+| Antes | Agora |
+| --- | --- |
+| Presets de menos de 16 cores (GameBoy, CGA, **Binary**) ficavam dominados por preto: o shader usava `paletteSize = 16` fixo e os slots vazios da textura competiam na busca | O C# envia o nº **real** de cores (`_PaletteSize`) e o shader usa só essas. **Binary** agora é preto e branco de verdade |
+| Dithering somava o threshold **depois** do lookup da paleta, gerando tons que não existem nela | Threshold aplicado **antes** da quantização/lookup — dithering ordenado correto, alternando entre cores reais da paleta |
+| `DitherType.FloydSteinberg` no dropdown não fazia nada | Removido do enum; valor órfão detectado e normalizado no Inspector |
+| `ExtractPaletteFromTexture` devolvia pixels **aleatórios** da imagem | Extração real: grid determinístico + buckets de 5 bits/canal + cores mais frequentes |
+| `CreateRandomPalette` sorteava RGB uniforme (tons lavados) e chamava `Random.InitState`, alterando o RNG **global** do jogo | Cores em **HSV** (saturação/valor altos) e `System.Random` próprio, sem tocar no `UnityEngine.Random` |
+| Paletas geradas em runtime ficavam com `Wrap Mode = Repeat` | `Clamp` em todas as paletas geradas pelo pacote |
+| `PalettePresetAsset.ToTexture()` gerava largura = nº de cores | Sempre 16×1 com slots preenchidos por repetição |
+| "Gerar Paleta Aleatória" do Inspector criava textura **só em memória** — a referência se perdia no domain reload | Grava como asset em disco (`AssetDatabase.CreateAsset`) |
+| Export do Palette Editor saía com largura variável (PNG inutilizável no campo Custom Palette) | Exporta sempre **16×1**, pronto para arrastar |
+| Dialogs de importação aceitavam **BMP**, que `Texture2D.LoadImage` não decodifica | Filtro só PNG/JPEG + verificação de falha de decodificação com mensagem clara |
+| `README` afirmava "MIT License" sem existir arquivo `LICENSE` | [`LICENSE`](../LICENSE) MIT adicionado ao repositório |
 
 ---
 
@@ -438,7 +471,10 @@ Dúvidas, bugs e sugestões: abra uma **issue** no repositório
 
 ## 📝 Licença
 
-**A definir pelo autor antes da publicação.** Enquanto não houver um arquivo `LICENSE` na raiz do
-repositório, o código está sob copyright reservado (todos os direitos reservados) — o que é
-incompatível com distribuição em store. Escolha uma licença (MIT, Apache-2.0, ou a licença padrão da
-Asset Store) e adicione o arquivo `LICENSE` antes de publicar.
+**MIT License** — veja [`LICENSE`](../LICENSE) na raiz do repositório.
+
+Use livremente em projetos pessoais e comerciais. Se você publicar uma versão modificada, mantenha o
+aviso de copyright e a permissão.
+
+> Se o asset for distribuído pela **Unity Asset Store**, os termos de uso da loja se aplicam à
+> distribuição; a MIT continua valendo para o repositório público.

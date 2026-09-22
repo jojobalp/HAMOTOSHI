@@ -1,6 +1,6 @@
 # 📊 PIXEL CAMERA - INVENTÁRIO DE FEATURES
 
-Inventário **real** do que existe no pacote `com.pixelcamera.unity` 1.0.3.
+Inventário **real** do que existe no pacote `com.pixelcamera.unity` 1.1.0.
 Itens marcados com ⚠️ funcionam, mas têm ressalva documentada. Itens em ❌ **não** estão
 implementados (estão no roadmap do [`CHANGELOG.md`](CHANGELOG.md)).
 
@@ -47,22 +47,20 @@ e `Fallback Off`. Motivos técnicos completos no [README raiz](../README.md#por-
 ### 🎨 Sistema de Paletas
 
 #### Presets Incluídos (7)
-- [x] **GameBoy** - 4 tons de verde clássico
+- [x] **GameBoy** - 4 tons de verde clássico (correto a partir da 1.1.0)
 - [x] **NES** - 16 cores do Nintendo Entertainment System
-- [x] **CGA** - 4 cores do CGA antigo ⚠️
+- [x] **CGA** - 4 cores do CGA antigo (correto a partir da 1.1.0)
 - [x] **PICO-8** - 16 cores do fantasy console
 - [x] **GB Color** - 16 cores do GameBoy Color
 - [x] **Grayscale** - 16 tons de cinza
-- [x] **Binary** - 2 cores (preto e branco) ⚠️
+- [x] **Binary** - 2 cores (preto e branco) (correto a partir da 1.1.0)
 
-> ⚠️ **Presets com menos de 16 cores (GameBoy, CGA, Binary):** `GetPresetPalette` cria sempre uma
-> textura **16×1**, mas preenche apenas os slots reais do preset. Os slots restantes ficam
-> `(0,0,0,0)` = preto, e o shader compara a cor do pixel contra **os 16 slots**
-> (`int paletteSize = 16;` fixo no `Frag`). O preto fantasma acaba vencendo a comparação para
-> qualquer cor escura/média: na prática o **Binary** tende a ficar quase todo preto e o
-> **GameBoy**/**CGA** perdem os tons escuros e médios. Os presets de 16 cores (NES, PICO-8,
-> GB Color, Grayscale) não são afetados. Workaround: paleta custom 16×1 com as cores repetidas.
-> Detalhes em [README → Limitações conhecidas](README.md#1-paletas-com-menos-de-16-cor-gameboy-cga-binary).
+> **Corrigido na 1.1.0:** até a 1.0.3 os presets com menos de 16 cores ficavam dominados por preto —
+> `GetPresetPalette` criava uma textura 16×1 preenchendo só os slots reais, e o `Frag` usava
+> `int paletteSize = 16;` fixo, então os slots vazios (pretos) competiam na busca de cor mais
+> próxima. Agora o C# envia o número real de cores via `_PaletteSize` e o shader compara apenas
+> contra as cores que existem. Veja
+> [README → Corrigido na 1.1.0](README.md#corrigido-na-110).
 
 #### Paleta Custom
 - [x] **Importar via textura PNG**
@@ -71,28 +69,25 @@ e `Fallback Off`. Motivos técnicos completos no [README raiz](../README.md#por-
   - `Filter Mode = Point`, `Wrap Mode = Clamp`, sem mipmaps, sem compressão
   - Preview no editor
   
-- [x] **Gerar aleatória** ⚠️
+- [x] **Gerar aleatória**
   - Seed opcional para reprodutibilidade
-  - ⚠️ As cores são sorteadas em **RGB uniforme** (`Random.value` por canal), não em HSV —
-    o resultado tende a cores dessaturadas, não "vibrantes"
-  - ⚠️ `Random.InitState(seed)` altera o estado **global** do `UnityEngine.Random`
-  - ⚠️ Slots não preenchidos ficam pretos (mesma causa do aviso dos presets acima)
-  - Botão no editor + API em código
+  - Cores sorteadas em **HSV** com saturação e valor altos (tons vibrantes, como se espera de uma
+    paleta retrô)
+  - Usa um `System.Random` próprio: **não** altera o estado global de `UnityEngine.Random`
+  - Gera a textura já no formato 16×1 / Point / Clamp, com os slots preenchidos por repetição
+  - Botão no editor (grava como **asset em disco**, a referência sobrevive a domain reload) + API
   
-- [x] **Extrair de imagem existente** ⚠️
+- [x] **Extrair de imagem existente**
   - Configuração de max colors
-  - ⚠️ **Não é extração de paleta real**: o método sorteia até 1000 pixels da imagem e guarda os
-    primeiros `maxColors` distintos num `HashSet<Color>`. Sem quantização e sem clustering, e como a
-    comparação é em float `RGBA` quase todo pixel é "único" — o resultado são **N pixels aleatórios
-    da imagem**, não a paleta representativa dela. Use o **Palette Editor** para trabalho real.
+  - Extração **real** a partir da 1.1.0: amostragem em grid determinístico, agrupamento em buckets
+    de 5 bits por canal e seleção das cores **mais frequentes** (cada uma pela média do bucket)
+  - Requer *Read/Write Enabled* na textura de origem (falha com mensagem clara se não estiver)
 
-- [x] **ScriptableObject para presets** ⚠️
+- [x] **ScriptableObject para presets**
   - Criação via menu Assets
   - Inspector customizado
-  - Conversão para Texture2D
+  - Conversão para Texture2D (`ToTexture()` devolve sempre 16×1, Point, Clamp, slots preenchidos)
   - Import/Export de PNG
-  - ⚠️ `ToTexture()` gera a textura com **largura = número de cores** (não 16) e não define
-    `wrapMode` (fica *Repeat*, não *Clamp*)
 
 - [x] **Palette Editor Window**
   - Interface visual completa
@@ -126,17 +121,19 @@ e `Fallback Off`. Motivos técnicos completos no [README raiz](../README.md#por-
   - Preview em tempo real
 
 #### Não implementado
-- ❌ **Floyd-Steinberg (difusão de erro)**
-  - O valor `DitherType.FloydSteinberg` **existe no enum e aparece no dropdown do Inspector**, mas o
-    shader só trata Bayer 2/4/8 (`if (_DitherType < 0.5 / < 1.5 / < 2.5)`). Selecioná-lo resulta em
-    **dithering desligado**, sem aviso.
-  - Difusão de erro exige múltiplos passes sequenciais — está no roadmap 1.2.0.
+- ❌ **Floyd-Steinberg (difusão de erro)** — requer múltiplos passes sequenciais; roadmap 1.3.0.
+  - Até a 1.0.3 o valor **existia no enum e aparecia no dropdown**, mas o shader nunca o tratou:
+    selecioná-lo deixava o dithering silenciosamente desligado. Foi **removido na 1.1.0**; assets
+    antigos com o inteiro órfão 3 são detectados no Inspector e normalizados para Bayer 4×4.
 
-> **Como o dithering é aplicado:** o shader soma um offset de brilho ao cor já quantizada
-> (`color.rgb += (threshold - 0.5) * intensity`) calculado pela matriz de Bayer na resolução da
-> textura de baixa resolução. Ou seja: é uma **modulação de brilho estilizada**, não um dithering
-> ordenado clássico que re-quantiza para a paleta depois do threshold. O efeito visual é retrô e
-> coerente, mas não é o algoritmo "de livro".
+> **Como o dithering é aplicado (a partir da 1.1.0):** é dithering **ordenado de verdade**. O
+> threshold de Bayer é somado à cor **antes** da quantização e do lookup da paleta, escalado pelo
+> número de níveis (`offset / colorCount`), então o resultado alterna entre as duas cores vizinhas
+> que existem na paleta. O padrão usa as UVs **originais** (não as distorcidas pela curvatura CRT),
+> ficando estável e alinhado à tela.
+>
+> Até a 1.0.3 o offset era somado **depois** do lookup (`color.rgb += dither`), o que apenas
+> deslocava o brilho de uma cor já escolhida e gerava tons que não pertencem à paleta.
 
 ### 📺 Efeito CRT Completo
 
@@ -300,15 +297,15 @@ PixelCamera/
 | Categoria | Status |
 | --- | --- |
 | **Pixelização** | ✅ Completo |
-| **Paletas** (presets de 16 cores) | ✅ Completo |
-| **Paletas** (presets de 2–4 cores) | ⚠️ Funcional com desvio visual conhecido |
-| **Extração de paleta de imagem** | ⚠️ Amostragem aleatória, não extração real |
-| **Dithering** (Bayer 2x2 / 4x4 / 8x8) | ✅ Completo |
-| **Dithering** (Floyd-Steinberg) | ❌ Não implementado (enum exposto no Inspector) |
+| **Paletas** (todos os 7 presets, 2 a 16 cores) | ✅ Completo |
+| **Extração de paleta de imagem** | ✅ Completo (frequência em buckets quantizados) |
+| **Dithering** (Bayer 2x2 / 4x4 / 8x8, ordenado) | ✅ Completo |
+| **Dithering** (Floyd-Steinberg) | ❌ Não implementado (removido do enum na 1.1.0) |
 | **CRT** (scanlines, bloom, curvatura, vinheta) | ✅ Completo (bloom é aproximação 5×5) |
 | **Controller Runtime** | ✅ Completo — requer Input Manager legado |
 | **Ferramentas de Editor** | ✅ Completo (7 itens de menu + inspector + Palette Editor) |
 | **Documentação** | ✅ Completo |
+| **Licença** | ✅ MIT (`LICENSE` na raiz do repositório) |
 | **Samples** | ⚠️ Scripts de exemplo; sem cena `.unity` pré-montada |
 | **Pipeline: URP** | ✅ Suportado (12 → 17+) |
 | **Pipeline: Built-in** | ❌ Não suportado |
@@ -317,17 +314,31 @@ PixelCamera/
 ## ⚠️ Limitações que você precisa conhecer antes de publicar/usar
 
 Lista completa e detalhada em [README.md → Limitações conhecidas](README.md#limitações-conhecidas).
-Resumo:
+Resumo (versão 1.1.0):
 
-1. Paletas com menos de 16 cores têm slots pretos fantasma (afeta GameBoy, CGA, Binary).
-2. Máximo de 16 cores (limite do shader; `colorCount` até 256 só afeta a pré-quantização).
-3. `FloydSteinberg` aparece no dropdown mas não faz nada.
-4. `ExtractPaletteFromTexture` é amostragem aleatória, não extração de paleta.
-5. UI em *Screen Space - Overlay* não é pixelada.
-6. `PixelCameraController` depende do Input Manager legado.
-7. Paletas geradas em runtime usam `Wrap Mode = Repeat` (não *Clamp*).
-8. Curvatura CRT alta recorta as bordas em preto.
-9. Sem suporte a Built-in e HDRP.
+1. Máximo de **16 cores** (`colorCount` até 256 só afeta a pré-quantização).
+2. **Floyd-Steinberg** não existe (só Bayer ordenado); difusão de erro é roadmap 1.3.0.
+3. A textura de paleta custom precisa ter **exatamente 16×1**.
+4. UI em *Screen Space - Overlay* **não** é pixelada.
+5. `PixelCameraController` depende do **Input Manager legado**.
+6. Curvatura CRT alta recorta as bordas em preto.
+7. Bloom do CRT é box 5×5 (25 amostras/pixel) — o efeito mais caro.
+8. Scanlines usam a resolução da textura de baixa resolução.
+9. Sem suporte a **Built-in e HDRP**.
+
+### Corrigido na 1.1.0 (não são mais limitações)
+
+- Presets de 2–4 cores dominados por preto → o shader recebe o nº real de cores.
+- Dithering somado depois do lookup → agora é ordenado, aplicado antes da quantização.
+- `FloydSteinberg` no dropdown sem efeito → removido, com migração automática no Inspector.
+- `ExtractPaletteFromTexture` aleatória → extração por frequência real.
+- `CreateRandomPalette` em RGB + `Random.InitState` global → HSV + `System.Random` próprio.
+- Paletas em runtime com `Wrap = Repeat` → `Clamp`.
+- `ToTexture()` com largura variável → sempre 16×1.
+- "Gerar Paleta Aleatória" criava textura só em memória → grava como asset.
+- Export do Palette Editor com largura variável → sempre 16×1.
+- Importação aceitava BMP (não decodificável) → filtro PNG/JPEG + checagem de falha.
+- Sem arquivo `LICENSE` → **MIT** adicionado.
 
 ## 🚀 Destaques
 
@@ -371,5 +382,5 @@ O que ele **não** é:
   técnica documentada.
 - ❌ Não é um sistema de paleta ilimitado. O teto é **16 cores**.
 - ❌ Não tem difusão de erro (Floyd-Steinberg) nesta versão.
-- ⚠️ Os presets de 2 e 4 cores precisam de ajuste (limitação 1) para entregar o visual anunciado.
+- ⚠️ Os *Samples* são scripts, não uma cena `.unity` pronta para abrir e dar Play.
 

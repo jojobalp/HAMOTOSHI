@@ -73,20 +73,20 @@ No Inspector do **Pixel Camera Render Feature**:
 
 🎨 Paleta:
    - Enabled: true
-   - Preset: PICO-8          ← use um preset de 16 cores (veja o aviso abaixo)
+   - Preset: PICO-8          ← qualquer um dos 7 presets funciona
 
 🔲 Dithering:
    - Enabled: false (opcional)
-   - Type: Bayer4x4          ← FloydSteinberg NÃO está implementado
+   - Type: Bayer4x4          ← só existe Bayer 2x2/4x4/8x8
 
 📺 CRT:
    - Enabled: false (opcional)
 ```
 
-> ⚠️ **Presets GameBoy, CGA e Binary** (menos de 16 cores) têm um comportamento conhecido
-> incorreto: os slots não usados da textura de paleta ficam pretos e "sugam" as cores escuras/médias
-> da imagem. Para a primeira experiência, use **PICO-8**, **NES**, **GB Color** ou **Grayscale**.
-> Detalhes e workaround em [README → Limitações conhecidas](README.md#limitações-conhecidas).
+> Os presets de menos de 16 cores (**GameBoy**, **CGA**, **Binary**) funcionam corretamente a partir
+> da **1.1.0** — o C# informa ao shader o número real de cores. Nas versões até 1.0.3 eles ficavam
+> dominados por preto; se estiver atualizando, veja
+> [README → Corrigido na 1.1.0](README.md#corrigido-na-110).
 
 ### Passo 4: (Opcional) Controller em runtime
 
@@ -135,20 +135,30 @@ CRT: Off
 ### 🎮 GameBoy Clássico
 ```
 Resolução: 160x144
-Paleta: custom 16x1 com 4 tons de verde repetidos nos 16 slots
+Paleta: GameBoy (4 tons de verde)
 Dithering: Bayer2x2 (0.5)
 CRT: Off
 ```
-> O preset pronto **GameBoy** sofre da limitação de paletas com menos de 16 cores. Para o visual
-> correto de 4 tons, monte uma paleta custom 16×1 repetindo os 4 tons (ex.: 4 slots por tom).
+
+### ⬛ Preto e branco (1-bit)
+```
+Resolução: 320x180
+Paleta: Binary (2 cores)
+Dithering: Bayer2x2 (0.6)   ← é o dithering que produz os meios-tons
+CRT: Off
+```
 
 ---
 
 ## Paletas custom
 
 **Regra de ouro: a textura de paleta deve ter exatamente 16×1 pixels**, `Filter Mode = Point`,
-`Wrap Mode = Clamp`, sem mipmaps e sem compressão. O shader percorre **sempre os 16 slots** — se a
-sua paleta tem menos cores, **preencha os slots restantes repetindo cores** (nunca deixe em preto).
+`Wrap Mode = Clamp`, sem mipmaps e sem compressão. Se a sua paleta tem menos cores, **preencha os
+slots restantes repetindo cores** (nunca deixe em preto) — uma paleta custom é sempre interpretada
+como tendo 16 cores.
+
+Todas as ferramentas do pacote (presets, `PaletteUtility`, `PalettePresetAsset.ToTexture()`, export
+do Palette Editor) já geram a textura nesse formato, preenchendo os slots por repetição.
 
 ### Método 1: Palette Editor (recomendado)
 1. **Tools > Pixel Camera > Palette Editor**
@@ -162,14 +172,22 @@ sua paleta tem menos cores, **preencha os slots restantes repetindo cores** (nun
 2. Configure as cores
 3. Use `preset.ToTexture()` para converter
 
-> `ToTexture()` cria a textura com a **largura igual ao número de cores** (não 16) e não define
-> `wrapMode`. Para uso consistente, preencha os 16 slots do asset.
+> Desde a 1.1.0 `ToTexture()` devolve sempre uma textura **16×1** com `Point`/`Clamp` e os slots
+> preenchidos por repetição das cores do preset.
 
 ### Método 3: Código
 ```csharp
+// Cores sorteadas em HSV (vibrantes), seed reproduzível, textura já em 16x1/Point/Clamp
 var palette = PaletteUtility.CreateRandomPalette(16, seed: 42);
 pixelCamera.SetCustomPalette(palette);
+
+// Extrai as cores mais frequentes da imagem (requer Read/Write Enabled na origem)
+var extracted = PaletteUtility.ExtractPaletteFromTexture(myTexture, maxColors: 16);
 ```
+
+> `CreateRandomPalette` usa um `System.Random` próprio: **não** altera o estado global de
+> `UnityEngine.Random` (a 1.0.3 chamava `Random.InitState`, o que mudava a sequência aleatória do
+> jogo inteiro).
 
 ---
 
@@ -246,7 +264,7 @@ pixelCamera.SetPalettePreset(PixelCameraRenderFeature.PalettePreset.PICO8);
 // Paleta aleatória
 pixelCamera.GenerateRandomPalette(seed: 42);
 
-// Amostragem de imagem (leia a limitação antes de usar)
+// Extração de paleta (requer Read/Write Enabled na textura de origem)
 var palette = PaletteUtility.ExtractPaletteFromTexture(myTexture, maxColors: 16);
 pixelCamera.SetCustomPalette(palette);
 ```
