@@ -1,8 +1,8 @@
 {
     "name": "com.pixelcamera.unity",
     "version": "1.0.3",
-    "displayName": "Pixel Camera URP",
-    "description": "Sistema completo de câmera pixel para Unity com URP. Inclui pixelização, paletas limitadas, dithering e efeitos CRT.",
+    "displayName": "Pixel Camera (URP)",
+    "description": "Efeito de câmera pixel art para a Universal Render Pipeline (URP). Pixelização com upscale em filtro point, paletas limitadas (até 16 cores), dithering Bayer 2x2/4x4/8x8 e efeito CRT (scanlines, bloom, curvatura e vinheta). Requer URP 12+ (Unity 2021.3 LTS a Unity 6.x). Não suporta Built-in Render Pipeline nem HDRP.",
     "unity": "2021.3",
     "unityRelease": "0f1",
     "dependencies": {
@@ -16,15 +16,17 @@
         "postprocessing",
         "crt",
         "dithering",
-        "palette"
+        "palette",
+        "urp",
+        "renderfeature"
     ],
     "author": {
         "name": "Pixel Camera Team"
     },
     "samples": [
         {
-            "displayName": "Demo Scene",
-            "description": "Cena de exemplo com configuração completa",
+            "displayName": "Demo Scripts",
+            "description": "Scripts de exemplo: PixelCameraDemo (5 modos acionáveis pelas teclas 1-5: GameBoy, Retrô, CRT, Moderno e Random) e PixelCameraTestScene (gerador de cena de teste). Não inclui cena .unity pré-montada; os scripts usam o Input Manager legado.",
             "path": "Samples~/DemoScene"
         }
     ]
