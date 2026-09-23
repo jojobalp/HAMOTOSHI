@@ -343,7 +343,7 @@ namespace PixelCamera
                 if (m_LowResTexture != null)
                 {
                     m_LowResTexture.Release();
-                    Object.Destroy(m_LowResTexture);
+                    DestroyOwnedObject(m_LowResTexture);
                 }
 
                 m_LowResTexture = new RenderTexture(m_PixelWidth, m_PixelHeight, 0, RenderTextureFormat.ARGB32)
@@ -366,24 +366,33 @@ namespace PixelCamera
             if (m_LowResTexture != null)
             {
                 m_LowResTexture.Release();
-                Object.Destroy(m_LowResTexture);
+                DestroyOwnedObject(m_LowResTexture);
                 m_LowResTexture = null;
             }
 #endif
 
             foreach (var palette in m_PresetPalettes.Values)
             {
-                if (palette != null)
-                {
-                    Object.Destroy(palette);
-                }
+                DestroyOwnedObject(palette);
             }
             m_PresetPalettes.Clear();
+            m_PresetPaletteSizes.Clear();
 
-            if (m_Material != null)
-            {
-                Object.Destroy(m_Material);
-            }
+            DestroyOwnedObject(m_Material);
+            m_Material = null;
+        }
+
+        /// <summary>
+        /// Libera objetos criados pela pass sem chamar Destroy em edit mode.
+        /// </summary>
+        private static void DestroyOwnedObject(Object obj)
+        {
+            if (obj == null) return;
+
+            if (Application.isPlaying)
+                Object.Destroy(obj);
+            else
+                Object.DestroyImmediate(obj);
         }
 
         /// <summary>
