@@ -1,6 +1,6 @@
 # 📊 PIXEL CAMERA - INVENTÁRIO DE FEATURES
 
-Inventário **real** do que existe no pacote `com.pixelcamera.unity` 1.1.0.
+Inventário **real** do que existe no pacote `com.pixelcamera.unity` 1.1.1.
 Itens marcados com ⚠️ funcionam, mas têm ressalva documentada. Itens em ❌ **não** estão
 implementados (estão no roadmap do [`CHANGELOG.md`](CHANGELOG.md)).
 
@@ -63,10 +63,18 @@ e `Fallback Off`. Motivos técnicos completos no [README raiz](../README.md#por-
 > [README → Corrigido na 1.1.0](README.md#corrigido-na-110).
 
 #### Paleta Custom
-- [x] **Importar via textura PNG**
-  - Carregamento por arquivo: **PNG e JPEG** (`Texture2D.LoadImage`). **BMP não é suportado.**
-  - A textura de paleta deve ter **exatamente 16×1 pixels** — o shader itera os 16 slots
-  - `Filter Mode = Point`, `Wrap Mode = Clamp`, sem mipmaps, sem compressão
+- [x] **Importar via arquivo de imagem** (1.1.1: funcionando de verdade)
+  - Carregamento por arquivo: **PNG e JPEG** (`Texture2D.LoadImage`). **BMP não é suportado**, e
+    também não há leitor para `.pal`, `.gpl`, `.act`, `.hex`, JSON ou CSV
+  - A imagem é decodificada **direto do disco**, numa textura temporária em memória — então **não
+    depende dos settings de importação do arquivo de origem**
+  - Se for uma **faixa de paleta** (altura 1, largura até 16), as cores são usadas como estão;
+    qualquer outra imagem passa pela extração das cores mais frequentes
+  - O resultado é gravado como PNG **16×1** em `Assets/PixelCameraPalettes/` com `Point`, `Clamp`,
+    sem mipmaps, sem compressão, `Read/Write Enabled` e `npotScale = None` — **configurado
+    automaticamente**, sem passos manuais
+  - Botões no Inspector do Render Feature, no Palette Editor, no Inspector do `PalettePresetAsset` e
+    em **Tools > Pixel Camera > Criar Paleta a partir de Imagem**
   - Preview no editor
   
 - [x] **Gerar aleatória**
@@ -77,17 +85,23 @@ e `Fallback Off`. Motivos técnicos completos no [README raiz](../README.md#por-
   - Gera a textura já no formato 16×1 / Point / Clamp, com os slots preenchidos por repetição
   - Botão no editor (grava como **asset em disco**, a referência sobrevive a domain reload) + API
   
-- [x] **Extrair de imagem existente**
+- [x] **Extrair de imagem existente** (1.1.1: agora tem botão no editor)
   - Configuração de max colors
   - Extração **real** a partir da 1.1.0: amostragem em grid determinístico, agrupamento em buckets
     de 5 bits por canal e seleção das cores **mais frequentes** (cada uma pela média do bucket)
-  - Requer *Read/Write Enabled* na textura de origem (falha com mensagem clara se não estiver)
+  - Pela **API de runtime** (`PaletteUtility.ExtractPaletteFromTexture`) requer *Read/Write Enabled*
+    na textura de origem (falha com mensagem clara se não estiver)
+  - Pelos **botões do editor** esse requisito não existe: a imagem é decodificada do disco em
+    memória, sempre legível
+  - ⚠️ Foto com milhões de cores gera uma paleta "média". Para resultado retrô fiel, use pixel art,
+    ilustração flat ou sprite sheet — e prefira PNG a JPEG (artefato de compressão espalha as cores)
 
 - [x] **ScriptableObject para presets**
   - Criação via menu Assets
   - Inspector customizado
   - Conversão para Texture2D (`ToTexture()` devolve sempre 16×1, Point, Clamp, slots preenchidos)
   - Import/Export de PNG
+  - `FromTexture()` mantém os **16 slots** preenchidos por repetição (1.1.1)
 
 - [x] **Palette Editor Window**
   - Interface visual completa
@@ -95,7 +109,7 @@ e `Fallback Off`. Motivos técnicos completos no [README raiz](../README.md#por-
   - Ferramenta de gradiente
   - Presets de tema (Natureza, Pôr-do-sol, Noturno, Pastel)
   - Preview em tempo real
-  - Export/Import PNG
+  - Export/Import PNG + **Extrair de Imagem**
 
 ### 🔲 Sistema de Dithering
 
@@ -207,6 +221,8 @@ e `Fallback Off`. Motivos técnicos completos no [README raiz](../README.md#por-
 - [x] **Tools > Pixel Camera > Setup na Câmera Atual** - auto-fix do Feature + componente na câmera
 - [x] **Tools > Pixel Camera > Palette Editor** - abre o editor de paletas
 - [x] **Tools > Pixel Camera > Abrir Palette Editor** - atalho duplicado para o mesmo editor
+- [x] **Tools > Pixel Camera > Criar Paleta a partir de Imagem** - PNG/JPEG do disco → asset 16×1
+      configurado (novo na 1.1.1)
 - [x] **Tools > Pixel Camera > Gerar Textura Preview 320x180** - cria textura de teste
 - [x] **Tools > Pixel Camera > Documentação** - abre o guia
 - [x] **Tools > Pixel Camera > Diagnóstico do Projeto (URP)** - checa URP, pipeline asset e Feature
@@ -314,7 +330,7 @@ PixelCamera/
 ## ⚠️ Limitações que você precisa conhecer antes de publicar/usar
 
 Lista completa e detalhada em [README.md → Limitações conhecidas](README.md#limitações-conhecidas).
-Resumo (versão 1.1.0):
+Resumo (versão 1.1.1):
 
 1. Máximo de **16 cores** (`colorCount` até 256 só afeta a pré-quantização).
 2. **Floyd-Steinberg** não existe (só Bayer ordenado); difusão de erro é roadmap 1.3.0.
@@ -325,6 +341,18 @@ Resumo (versão 1.1.0):
 7. Bloom do CRT é box 5×5 (25 amostras/pixel) — o efeito mais caro.
 8. Scanlines usam a resolução da textura de baixa resolução.
 9. Sem suporte a **Built-in e HDRP**.
+
+### Corrigido na 1.1.1 (não são mais limitações)
+
+- "Importar Paleta de Texture" do Render Feature falhava **sempre** (caminho absoluto passado a
+  `AssetDatabase.LoadAssetAtPath`) → imagem decodificada do disco e gravada como asset 16×1.
+- Extração de paleta não tinha **nenhum botão** no editor (só API de código) → 4 entradas no editor.
+- `PaletteEditorWindow.ImportPalette` lia a linha 0 sem reamostrar → fluxo compartilhado com detecção
+  de faixa de paleta.
+- `PalettePresetAsset.FromTexture` truncava o array de cores → sempre 16 slots.
+- Configurar `Point`/`Clamp`/mipmaps/`Read-Write` manualmente após importar → `TextureImporter`
+  configurado automaticamente.
+- `CS0618` de `FindFirstObjectByType` no Unity 6 → `FindAnyObjectByType`.
 
 ### Corrigido na 1.1.0 (não são mais limitações)
 

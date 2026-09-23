@@ -85,10 +85,23 @@ namespace PixelCamera.Editor
                         GenerateRandomPalette();
                     }
                     
-                    if (GUILayout.Button("📷 Importar Paleta de Texture"))
+                    if (GUILayout.Button("📥 Importar Paleta (PNG/JPEG)"))
                     {
                         ImportPaletteFromTexture();
                     }
+                    
+                    if (GUILayout.Button("🖼️ Extrair Paleta de Imagem"))
+                    {
+                        ExtractPaletteFromImage();
+                    }
+                    
+                    EditorGUILayout.HelpBox(
+                        "Importar: escolha um PNG/JPEG (faixa 16×1 ou imagem qualquer) — o " +
+                        "asset 16×1 é criado em " + PaletteEditorUtility.PaletteFolder + " já " +
+                        "configurado e atribuído acima.\n" +
+                        "Extrair: pega as 16 cores mais frequentes de qualquer imagem " +
+                        "(pixel art, ilustração flat ou sprite sheet funcionam melhor que foto).",
+                        MessageType.None);
                     
                     EditorGUILayout.HelpBox(
                         "Presets disponíveis:\n" +
@@ -302,22 +315,36 @@ namespace PixelCamera.Editor
 
         private void ImportPaletteFromTexture()
         {
-            string path = EditorUtility.OpenFilePanel("Selecionar Texture de Paleta", "", "png,jpg");
-            
-            if (string.IsNullOrEmpty(path)) return;
-            
-            var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-            
-            if (texture == null)
-            {
-                EditorUtility.DisplayDialog("Erro", "Não foi possível carregar a textura. Verifique se o arquivo é válido.", "OK");
-                return;
-            }
-            
+            // Antes: AssetDatabase.LoadAssetAtPath(caminho absoluto do OpenFilePanel),
+            // que devolve sempre null porque a API só aceita "Assets/...". Agora a
+            // imagem é decodificada do disco e gravada como PNG 16x1 dentro do
+            // projeto, já com os settings de importação corretos.
+            Texture2D palette = PaletteEditorUtility.ImportImageAsPalette("Selecionar imagem da paleta");
+            if (palette == null) return;
+
             var paletteSettings = serializedObject.FindProperty("paletteSettings");
-            paletteSettings.FindPropertyRelative("customPalette").objectReferenceValue = texture;
-            
-            Debug.Log($"[PixelCamera] Paleta importada: {path}");
+            paletteSettings.FindPropertyRelative("customPalette").objectReferenceValue = palette;
+            serializedObject.ApplyModifiedProperties();
+
+            Debug.Log($"[PixelCamera] Paleta importada: {AssetDatabase.GetAssetPath(palette)}");
+        }
+
+        /// <summary>
+        /// Extrai as 16 cores mais frequentes de uma imagem qualquer e já atribui
+        /// ao campo <i>Paleta Custom</i>.
+        /// </summary>
+        private void ExtractPaletteFromImage()
+        {
+            Texture2D palette = PaletteEditorUtility.ImportImageAsPalette(
+                "Extrair paleta de uma imagem", forceExtract: true);
+            if (palette == null) return;
+
+            var paletteSettings = serializedObject.FindProperty("paletteSettings");
+            paletteSettings.FindPropertyRelative("enablePalette").boolValue = true;
+            paletteSettings.FindPropertyRelative("customPalette").objectReferenceValue = palette;
+            serializedObject.ApplyModifiedProperties();
+
+            Debug.Log($"[PixelCamera] Paleta extraída: {AssetDatabase.GetAssetPath(palette)}");
         }
 
         private void ResetCRTSettings()

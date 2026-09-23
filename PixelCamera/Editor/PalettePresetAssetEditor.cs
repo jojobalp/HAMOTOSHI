@@ -85,6 +85,13 @@ namespace PixelCamera.Editor
             
             EditorGUILayout.EndHorizontal();
             
+            EditorGUILayout.Space(5);
+            
+            if (GUILayout.Button("🖼️ Extrair de Imagem (16 cores mais frequentes)"))
+            {
+                ExtractFromImage();
+            }
+            
             serializedObject.ApplyModifiedProperties();
         }
         
@@ -125,38 +132,47 @@ namespace PixelCamera.Editor
         /// </remarks>
         private void ImportFromTexture()
         {
-            // LoadImage decodifica apenas PNG e JPEG.
-            string path = EditorUtility.OpenFilePanel("Importar Textura", Application.dataPath, "png,jpg,jpeg");
-            
-            if (string.IsNullOrEmpty(path)) return;
-            
-            byte[] fileData = System.IO.File.ReadAllBytes(path);
-            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            // Mantém o array com 16 slots e preenche os excedentes repetindo as
+            // cores importadas (slots em preto corrompem a busca de cor mais
+            // próxima no shader). A decodificação e a detecção de faixa de paleta
+            // vêm do fluxo compartilhado.
+            Color[] colors = PaletteEditorUtility.PickPaletteColors(
+                "Importar Textura", forceExtract: false, out int sourceColorCount);
+            if (colors == null) return;
 
-            if (!texture.LoadImage(fileData))
-            {
-                EditorUtility.DisplayDialog(
-                    "Formato não suportado",
-                    "Não foi possível decodificar o arquivo.\n\nFormatos suportados: PNG e JPEG.",
-                    "OK");
-                DestroyImmediate(texture);
-                return;
-            }
-            
             var colorsProp = serializedObject.FindProperty("colors");
-            int count = Mathf.Clamp(texture.width, 1, PalettePresetAsset.MaxColors);
             colorsProp.arraySize = PalettePresetAsset.MaxColors;
-            
+
             for (int i = 0; i < colorsProp.arraySize; i++)
             {
-                // Repete ciclicamente quando a imagem tem menos cores que 16.
-                Color c = texture.GetPixel(i % count, 0);
+                Color c = colors[i];
                 c.a = 1.0f;
                 colorsProp.GetArrayElementAtIndex(i).colorValue = c;
             }
-            
-            DestroyImmediate(texture);
-            Debug.Log($"[PalettePreset] Textura importada com sucesso ({count} cores, 16 slots preenchidos)!");
+
+            Debug.Log($"[PalettePreset] Textura importada com sucesso ({sourceColorCount} cores, 16 slots preenchidos)!");
+        }
+
+        /// <summary>
+        /// Extrai as 16 cores mais frequentes de uma imagem qualquer para o preset.
+        /// </summary>
+        private void ExtractFromImage()
+        {
+            Color[] colors = PaletteEditorUtility.PickPaletteColors(
+                "Extrair paleta de uma imagem", forceExtract: true, out _);
+            if (colors == null) return;
+
+            var colorsProp = serializedObject.FindProperty("colors");
+            colorsProp.arraySize = PalettePresetAsset.MaxColors;
+
+            for (int i = 0; i < colorsProp.arraySize; i++)
+            {
+                Color c = colors[i];
+                c.a = 1.0f;
+                colorsProp.GetArrayElementAtIndex(i).colorValue = c;
+            }
+
+            Debug.Log("[PalettePreset] Paleta extraída da imagem (16 cores mais frequentes).");
         }
         
         /// <summary>

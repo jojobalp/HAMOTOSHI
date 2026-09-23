@@ -3,7 +3,7 @@
 Sistema de câmera pixel art para **Unity URP**: pixelização, paletas limitadas, dithering Bayer e
 efeito CRT — tudo num único Render Feature, com controles individuais e API em runtime.
 
-> **Pacote:** `com.pixelcamera.unity` · **Versão:** 1.1.0 · **Unity:** 2021.3 LTS+ · **Pipeline:** URP 12+
+> **Pacote:** `com.pixelcamera.unity` · **Versão:** 1.1.1 · **Unity:** 2021.3 LTS+ · **Pipeline:** URP 12+
 
 ---
 
@@ -206,13 +206,31 @@ Ao criar uma paleta custom **à mão**:
 
 | Método | Onde |
 | --- | --- |
-| Editor visual | **Tools > Pixel Camera > Palette Editor** (grid editável, gradiente, temas, export/import PNG) |
+| **Extrair de imagem** (recomendado) | **Tools > Pixel Camera > Criar Paleta a partir de Imagem**, ou o botão **🖼️ Extrair Paleta de Imagem** no Inspector do Render Feature — escolhe um PNG/JPEG e o asset 16×1 já sai criado, configurado e atribuído |
+| Editor visual | **Tools > Pixel Camera > Palette Editor** (grid editável, gradiente, temas, export/import PNG, extrair de imagem) |
 | ScriptableObject | **Assets > Create > Pixel Camera > Palette Preset** + `preset.ToTexture()` |
 | Gerador aleatório | `PaletteUtility.CreateRandomPalette(16, seed: 42)` — cores em HSV, seed reproduzível |
-| Extração de imagem | `PaletteUtility.ExtractPaletteFromTexture(source, maxColors: 16)` — requer *Read/Write Enabled* na textura de origem |
+| Extração por código | `PaletteUtility.ExtractPaletteFromTexture(source, maxColors: 16)` — requer *Read/Write Enabled* na textura de origem |
 
 > Formatos de arquivo suportados para **carregar** paleta: **PNG e JPEG**
-> (`Texture2D.LoadImage`). BMP e outros formatos **não** são suportados.
+> (`Texture2D.LoadImage`). BMP e outros formatos **não** são suportados — inclusive formatos
+> clássicos de paleta como `.pal`, `.gpl`, `.act`, `.hex`, JSON e CSV.
+
+#### Do arquivo ao asset, sem passos manuais (1.1.1)
+
+Os botões de importação/extração leem a imagem **direto do disco**, então você não precisa importá-la
+no projeto nem configurar nada:
+
+1. Se a imagem for uma **faixa de paleta** (altura 1, largura até 16), as cores são usadas como
+   estão — slots restantes preenchidos por repetição.
+2. Qualquer outra imagem (foto, sprite, ilustração) passa pela extração das **16 cores mais
+   frequentes**.
+3. O resultado é gravado como PNG **16×1** em `Assets/PixelCameraPalettes/` com `Point`, `Clamp`,
+   sem mipmaps, sem compressão e `Read/Write Enabled` — já atribuído ao campo *Paleta Custom*.
+
+> **Expectativa:** foto com milhões de cores gera uma paleta "média", meio barrosa. Para resultado
+> retrô fiel, use **pixel art, ilustração flat ou sprite sheet**, e prefira **PNG** a JPEG (artefato
+> de compressão espalha as cores e atrapalha o agrupamento).
 
 ---
 
@@ -302,7 +320,7 @@ bloom physically-based.
 
 ## ⚠️ Limitações conhecidas
 
-Leia antes de comprar/usar. Nada aqui é bug de configuração — são limites reais da versão 1.1.0.
+Leia antes de comprar/usar. Nada aqui é bug de configuração — são limites reais da versão 1.1.1.
 
 ### 1. Máximo de 16 cores
 
