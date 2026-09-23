@@ -17,9 +17,13 @@ namespace PixelCamera.Editor
         [MenuItem("Tools/Pixel Camera/Setup na Câmera Atual")]
         public static void SetupOnCurrentCamera()
         {
-            // Object.FindObjectOfType ficou obsoleto no Unity 2023+/Unity 6 (aviso CS0618).
+            // Object.FindObjectOfType ficou obsoleto no Unity 2023+, e o substituto
+            // FindFirstObjectByType ficou obsoleto no Unity 6 (aviso CS0618) por depender
+            // da ordenação de instance ID. FindAnyObjectByType existe desde o Unity 2022.2,
+            // mesma versão da guarda, e não depende de ordenação — aqui tanto faz qual
+            // câmera é encontrada primeiro, queremos apenas "alguma câmera da cena".
 #if UNITY_2022_2_OR_NEWER
-            var camera = Camera.current ?? Object.FindFirstObjectByType<Camera>();
+            var camera = Camera.current ?? Object.FindAnyObjectByType<Camera>();
 #else
             var camera = Camera.current ?? Object.FindObjectOfType<Camera>();
 #endif
@@ -74,6 +78,14 @@ namespace PixelCamera.Editor
         public static void OpenPaletteEditor()
         {
             PaletteEditorWindow.ShowWindow();
+        }
+
+        [MenuItem("Tools/Pixel Camera/Criar Paleta a partir de Imagem")]
+        public static void CreatePaletteFromImage()
+        {
+            // Atalho direto: PNG/JPEG do disco -> asset de paleta 16x1 pronto para
+            // arrastar no campo "Paleta Custom" do Render Feature.
+            PaletteEditorUtility.ImportImageAsPalette("Criar paleta a partir de imagem");
         }
 
         [MenuItem("Tools/Pixel Camera/Gerar Textura Preview 320x180")]

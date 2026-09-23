@@ -1,5 +1,69 @@
 # 📋 CHANGELOG - Pixel Camera
 
+## [1.1.1] - 2026-09-23
+
+Versão de **correção da importação de paleta** + o fluxo "escolher uma imagem e virar preset".
+Nenhum breaking change na API pública; `PalettePresetAsset.FromTexture` mudou de comportamento
+(para o que a documentação já descrevia).
+
+### ✨ Novidades
+
+- ✅ **Extração de paleta a partir de qualquer imagem, com 1 clique.** `ExtractPaletteFromTexture`
+  existia desde a 1.1.0 como API de runtime, mas **nenhum botão no editor a usava** — o único jeito
+  era escrever código, e ainda exigia uma textura já importada com *Read/Write Enabled*. Agora há
+  três entradas para o mesmo fluxo:
+  - **Tools > Pixel Camera > Criar Paleta a partir de Imagem**
+  - **🖼️ Extrair Paleta de Imagem** no Inspector do Render Feature (já atribui ao campo
+    *Paleta Custom* e liga *Habilitar Paleta*)
+  - **🖼️ Extrair de Imagem** no Palette Editor e no Inspector do `PalettePresetAsset`
+- ✅ **`PaletteEditorUtility`** (novo, `PixelCamera/Editor`): fluxo compartilhado de
+  "arquivo de imagem → paleta utilizável". Decodifica a imagem **direto do disco** numa textura
+  temporária em memória (sempre legível), então **não depende dos settings de importação do arquivo
+  de origem**. Grava o resultado como PNG **16×1** em `Assets/PixelCameraPalettes/` e configura o
+  importer automaticamente (`Point`, `Clamp`, sem mipmaps, sem compressão, `Read/Write Enabled`,
+  `sRGB`, `npotScale = None`).
+- ✅ **Detecção automática de faixa de paleta.** Se a imagem tem altura 1 e largura até 16, as cores
+  são usadas **como estão** (slots restantes preenchidos por repetição). Qualquer outra imagem
+  (foto, sprite, ilustração) passa pela extração das 16 cores mais frequentes. O dialog informa qual
+  dos dois caminhos foi usado.
+
+### 🐛 Correções
+
+- ✅ **"Importar Paleta de Texture" do Render Feature falhava sempre** (o erro relatado ao enviar
+  uma imagem). `EditorUtility.OpenFilePanel` devolve caminho **absoluto** de disco
+  (`C:\Users\...\foto.png`), e o código o passava direto para `AssetDatabase.LoadAssetAtPath`, que
+  **só aceita caminho relativo ao projeto** (`Assets/...`). O retorno era sempre `null`, então qualquer
+  arquivo válido produzia *"Não foi possível carregar a textura. Verifique se o arquivo é válido."*
+  Agora a imagem é decodificada do disco e gravada como asset 16×1 dentro do projeto.
+  O filtro também era `"png,jpg"` (sem `jpeg`), inconsistente com os outros dois dialogs — unificado
+  em `png,jpg,jpeg`.
+- ✅ **`PaletteEditorWindow.ImportPalette` não reamostrava.** Fazia
+  `paletteSize = Clamp(texture.width, 2, 16)` e lia apenas a linha 0: importar qualquer imagem que
+  não fosse uma faixa 16×1 (ex.: 256×256) devolvia os primeiros 16 pixels do topo, não a paleta.
+  `PaletteUtility.LoadPaletteFromPNG` reamostrava corretamente, mas a janela duplicava a lógica em
+  vez de usá-la. Agora as duas passam pelo mesmo fluxo.
+- ✅ **`PalettePresetAsset.FromTexture` ainda truncava o array.** A correção da 1.1.0 (preencher os
+  16 slots por repetição) tinha sido aplicada só ao `PalettePresetAssetEditor.ImportFromTexture`; a
+  API pública de runtime continuava fazendo `colors = new Color[source.width]`, deixando slots
+  vazios que corrompem a busca de cor mais próxima no shader. Agora devolve sempre 16 slots.
+- ✅ **CS0618 no Unity 6:** `Object.FindFirstObjectByType<Camera>()` (obsoleto por depender da
+  ordenação de *instance ID*) substituído por `Object.FindAnyObjectByType<Camera>()` em
+  `PixelCameraSetupUtility`. Ambos existem desde o Unity 2022.2, então a guarda
+  `UNITY_2022_2_OR_NEWER` continua válida. Era apenas um aviso — **não** era a causa da falha de
+  importação.
+
+### ⚠️ Notas de atualização (1.1.0 → 1.1.1)
+
+- **`PalettePresetAsset.FromTexture` mudou de comportamento**: o array `colors` passa a ter sempre
+  **16 elementos** (antes tinha a largura da textura de origem). Código que dependia do tamanho
+  antigo precisa se ajustar.
+- Paletas importadas/extraídas são gravadas em **`Assets/PixelCameraPalettes/`**. A pasta é criada
+  automaticamente; pode ser movida ou renomeada depois (o asset continua válido).
+- **Formatos de arquivo continuam PNG e JPEG** — `Texture2D.LoadImage` não decodifica BMP, e não há
+  leitor para `.pal`, `.gpl`, `.act`, `.hex`, JSON ou CSV.
+
+---
+
 ## [1.1.0] - 2026-09-22
 
 Versão de **correção de comportamento visual** + documentação honesta, preparada para a primeira

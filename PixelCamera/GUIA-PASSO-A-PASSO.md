@@ -332,6 +332,21 @@ No Inspector do Render Feature:
 
 ## 🎨 PASSO 9: Usar o Palette Editor
 
+### 9.0 - O caminho mais rápido: paleta a partir de uma imagem
+1. Menu: **Tools > Pixel Camera > Criar Paleta a partir de Imagem**
+2. Escolha um **PNG ou JPEG** (pode ser baixado do Google — não precisa estar no projeto)
+3. O Unity cria o asset **16×1** em `Assets/PixelCameraPalettes/`, já com `Point`, `Clamp`,
+   sem mipmaps, sem compressão e `Read/Write Enabled`
+4. Arraste para o campo **Paleta Custom** do Render Feature
+
+> Usando o botão **🖼️ Extrair Paleta de Imagem** direto no Inspector do Render Feature, o passo 4
+> é automático — o campo já é preenchido e *Habilitar Paleta* é ligado.
+
+> **O que ele faz com a imagem:** se for uma faixa de paleta (altura 1, até 16 px de largura), as
+> cores são usadas como estão. Qualquer outra imagem tem as **16 cores mais frequentes** extraídas.
+> Foto gera paleta "média"; para resultado retrô fiel use **pixel art, ilustração flat ou sprite
+> sheet**, de preferência em **PNG**.
+
 ### 9.1 - Abrir o Editor
 1. Menu: **Tools > Pixel Camera > Palette Editor**
 2. Uma janela vai abrir
@@ -346,12 +361,16 @@ No Inspector do Render Feature:
    - **🧊 Frio** - Tons de azul
    - **🌿 Natureza** - Tons de verde
    - **🌅 Pôr-do-sol** - Tons quentes
+   - **🖼️ Extrair de Imagem** - As 16 cores mais frequentes de um PNG/JPEG
 
 ### 9.3 - Exportar a Paleta
-1. Clique em **"💾 Exportar PNG"**
+1. Clique em **"💾 Exportar PNG"** (o arquivo já sai 16×1)
 2. Escolha onde salvar
 3. Importe o PNG na Unity
 4. Arraste para o campo **Custom Palette** no Render Feature
+
+> Prefere pular os passos 3 e 4? Use **9.0** — ele grava o asset dentro do projeto e já configura a
+> importação para você.
 
 ---
 
@@ -503,7 +522,41 @@ passes sequenciais).
 1. Marque **"Habilitar Paleta"** ✅
 2. Verifique se o **Preset** está correto
 3. Se usar Custom Palette, verifique se a textura foi atribuída
-4. A textura deve ter as cores na **primeira linha** (linha y=0)
+4. A textura deve ter as cores na **primeira linha** (linha y=0) e **exatamente 16×1**
+
+---
+
+### ❌ "Não foi possível carregar a textura" ao importar uma imagem
+**Problema:** você clica em importar paleta, escolhe um PNG/JPEG válido e recebe erro.
+
+**Causa:** bug das versões **até 1.1.0**. O botão passava o caminho **absoluto** do disco
+(`C:\Users\...\foto.png`) para `AssetDatabase.LoadAssetAtPath`, que só aceita caminho relativo ao
+projeto (`Assets/...`) — devolvia sempre `null`, para qualquer arquivo.
+
+**Solução:** atualize para a **1.1.1**. O botão agora decodifica a imagem do disco e grava um PNG
+16×1 em `Assets/PixelCameraPalettes/`, já configurado e atribuído ao campo.
+
+---
+
+### ⚠️ "warning CS0618: FindFirstObjectByType is obsolete"
+**Problema:** aviso no Console apontando `PixelCameraSetupUtility.cs`.
+
+**Causa:** `FindFirstObjectByType` ficou obsoleto no Unity 6 por depender da ordenação de
+*instance ID*.
+
+**Importante:** é **apenas um aviso** — não impede compilação nem tem relação com falha de
+importação de paleta. Corrigido na **1.1.1** (troca por `FindAnyObjectByType`).
+
+---
+
+### ❌ "Formato não suportado" ao importar paleta
+**Problema:** o arquivo escolhido não decodifica.
+
+**Causa:** `Texture2D.LoadImage` decodifica **apenas PNG e JPEG**. BMP, TGA, PSD, WebP e os formatos
+clássicos de paleta (`.pal`, `.gpl`, `.act`, `.hex`, JSON, CSV) **não** são suportados.
+
+**Solução:** converta para PNG (ou JPEG). Até a 1.0.3 o filtro do dialog aceitava BMP e a falha era
+silenciosa — você recebia uma textura vazia sem nenhum erro.
 
 ---
 

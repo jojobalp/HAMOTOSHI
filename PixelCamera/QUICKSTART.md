@@ -160,16 +160,34 @@ como tendo 16 cores.
 Todas as ferramentas do pacote (presets, `PaletteUtility`, `PalettePresetAsset.ToTexture()`, export
 do Palette Editor) já geram a textura nesse formato, preenchendo os slots por repetição.
 
-### Método 1: Palette Editor (recomendado)
+### Método 0: a partir de uma imagem (o mais simples)
+1. **Tools > Pixel Camera > Criar Paleta a partir de Imagem**
+   — ou o botão **🖼️ Extrair Paleta de Imagem** no Inspector do Render Feature
+2. Escolha um **PNG ou JPEG** (baixado da internet, um sprite, uma ilustração)
+3. Pronto: o asset **16×1** é criado em `Assets/PixelCameraPalettes/`, já configurado
+   (`Point`, `Clamp`, sem mipmaps, sem compressão, `Read/Write Enabled`) e, se você usou o botão do
+   Inspector, já atribuído ao campo **Paleta Custom**
+
+> **Como decide o que extrair:** se a imagem for uma **faixa de paleta** (altura 1, largura até 16),
+> as cores são usadas como estão. Qualquer outra imagem passa pela extração das **16 cores mais
+> frequentes** (grid determinístico + buckets de 5 bits por canal).
+>
+> ⚠️ **Foto gera paleta "média"** — com milhões de cores o resultado é um filtro estilizado, não uma
+> paleta retrô fiel. Use **pixel art, ilustração flat ou sprite sheet**, e prefira **PNG** a JPEG.
+
+### Método 1: Palette Editor (edição manual)
 1. **Tools > Pixel Camera > Palette Editor**
-2. Edite o grid de cores (ou use gradiente/temas prontos)
-3. **Exportar PNG**
-4. Importe o PNG no Unity e ajuste os settings de importação (16×1, Point, Clamp, sem mipmaps)
+2. Edite o grid de cores (ou use gradiente/temas prontos, ou **🖼️ Extrair de Imagem**)
+3. **Exportar PNG** — o arquivo já sai 16×1
+4. Importe o PNG no Unity e ajuste os settings de importação (Point, Clamp, sem mipmaps)
 5. Arraste para o campo **Custom Palette**
+
+> Os botões **📥 Importar PNG** e **🖼️ Extrair de Imagem** da janela leem o arquivo direto do disco
+> e preenchem o grid — não é preciso importar a imagem no projeto antes.
 
 ### Método 2: ScriptableObject
 1. **Assets > Create > Pixel Camera > Palette Preset**
-2. Configure as cores
+2. Configure as cores (ou use **📷 Importar de Texture** / **🖼️ Extrair de Imagem**)
 3. Use `preset.ToTexture()` para converter
 
 > Desde a 1.1.0 `ToTexture()` devolve sempre uma textura **16×1** com `Point`/`Clamp` e os slots
@@ -244,6 +262,21 @@ var extracted = PaletteUtility.ExtractPaletteFromTexture(myTexture, maxColors: 1
 - Use Bayer 4x4 em vez de 8x8
 - Reduza **Bloom Radius**
 
+### "Não foi possível carregar a textura" ao importar paleta
+- Bug das versões **até 1.1.0**: o caminho **absoluto** do disco era passado para
+  `AssetDatabase.LoadAssetAtPath`, que só aceita `Assets/...` — falhava para **qualquer** arquivo
+- Corrigido na **1.1.1**: a imagem é decodificada do disco e gravada como PNG 16×1 em
+  `Assets/PixelCameraPalettes/`, já configurada e atribuída ao campo *Paleta Custom*
+
+### "Formato não suportado" ao importar paleta
+- `Texture2D.LoadImage` decodifica **apenas PNG e JPEG**
+- BMP, TGA, PSD, WebP, `.pal`, `.gpl`, `.act`, `.hex`, JSON e CSV **não** são suportados — converta
+  para PNG
+
+### "warning CS0618: FindFirstObjectByType is obsolete"
+- Só um **aviso**, não impede nada e não tem relação com falha de importação
+- Corrigido na **1.1.1** (`FindAnyObjectByType`)
+
 ### "A UI não fica pixelada"
 - Esperado: **Canvas em Screen Space - Overlay** é desenhado depois do pipeline da câmera
 - Use **Screen Space - Camera** (na mesma câmera) ou **World Space**
@@ -278,6 +311,7 @@ pixelCamera.SetCustomPalette(palette);
 - **Inventário de features**: [`FEATURES.md`](FEATURES.md)
 - **Tutorial visual**: [`GUIA-PASSO-A-PASSO.md`](GUIA-PASSO-A-PASSO.md)
 - **Palette Editor**: `Tools > Pixel Camera > Palette Editor`
+- **Paleta a partir de imagem**: `Tools > Pixel Camera > Criar Paleta a partir de Imagem`
 - **Setup rápido**: `Tools > Pixel Camera > Setup na Câmera Atual`
 - **Diagnóstico**: `Tools > Pixel Camera > Diagnóstico do Projeto (URP)`
 

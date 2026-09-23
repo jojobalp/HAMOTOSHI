@@ -5,11 +5,17 @@
 Efeito de câmera retrô para **Unity URP**: pixelização, paletas limitadas, dithering Bayer ordenado
 e CRT.
 
-> **Novidade na 1.1.0:** os presets de paleta com menos de 16 cores (GameBoy, CGA e **Binary**) e o
-> dithering foram corrigidos — ambos tinham comportamento visual errado nas versões anteriores.
+> **Novidade na 1.1.1:** dá para criar uma paleta **a partir de qualquer imagem** em 1 clique —
+> **Tools > Pixel Camera > Criar Paleta a partir de Imagem** escolhe um PNG/JPEG do disco e grava o
+> asset 16×1 já configurado em `Assets/PixelCameraPalettes/`. Também corrige o botão "Importar
+> Paleta de Texture" do Render Feature, que falhava para **qualquer** arquivo.
+>
+> **Na 1.1.0:** os presets de paleta com menos de 16 cores (GameBoy, CGA e **Binary**) e o dithering
+> foram corrigidos — ambos tinham comportamento visual errado nas versões anteriores.
+>
 > Veja [`PixelCamera/CHANGELOG.md`](PixelCamera/CHANGELOG.md).
 
-> **Pacote:** `com.pixelcamera.unity` · **Versão atual:** 1.1.0 · **Unity:** 2021.3 LTS ou superior
+> **Pacote:** `com.pixelcamera.unity` · **Versão atual:** 1.1.1 · **Unity:** 2021.3 LTS ou superior
 
 ---
 

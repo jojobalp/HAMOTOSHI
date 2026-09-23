@@ -39,6 +39,14 @@ namespace PixelCamera
         /// <summary>
         /// Importa cores de uma Texture2D (lê a primeira linha, até 16 pixels).
         /// </summary>
+        /// <remarks>
+        /// O array fica sempre com <b>16 slots</b>: quando a origem tem menos cores, os
+        /// slots excedentes repetem ciclicamente as existentes. Antes o array era truncado
+        /// para a largura da imagem, o que deixava slots vazios e corrompia a busca de cor
+        /// mais próxima no shader — o mesmo bug corrigido no
+        /// <c>PalettePresetAssetEditor.ImportFromTexture</c>, mas que permanecia aqui na API
+        /// pública de runtime.
+        /// </remarks>
         public void FromTexture(Texture2D source)
         {
             if (source == null)
@@ -48,11 +56,13 @@ namespace PixelCamera
             }
 
             int size = Mathf.Clamp(source.width, 1, PalettePresetAsset.MaxColors);
-            colors = new Color[size];
-            
-            for (int i = 0; i < size; i++)
+            colors = new Color[MaxColors];
+
+            for (int i = 0; i < colors.Length; i++)
             {
-                colors[i] = source.GetPixel(i, 0);
+                Color c = source.GetPixel(i % size, 0);
+                c.a = 1.0f;
+                colors[i] = c;
             }
         }
         

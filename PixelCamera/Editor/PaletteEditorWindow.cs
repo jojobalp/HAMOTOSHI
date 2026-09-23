@@ -216,7 +216,22 @@ namespace PixelCamera.Editor
             }
             GUI.backgroundColor = Color.white;
             
+            GUI.backgroundColor = new Color(0.9f, 0.6f, 0.2f);
+            if (GUILayout.Button("🖼️ Extrair de Imagem", GUILayout.Height(35)))
+            {
+                ExtractPaletteFromImage();
+            }
+            GUI.backgroundColor = Color.white;
+            
             EditorGUILayout.EndHorizontal();
+            
+            EditorGUILayout.HelpBox(
+                "Importar PNG: se o arquivo for uma faixa de paleta (altura 1, até 16 px), as cores " +
+                "são usadas como estão; em qualquer outra imagem são extraídas as 16 cores mais " +
+                "frequentes.\n" +
+                "Extrair de Imagem: força a extração das 16 cores mais frequentes, mesmo de uma " +
+                "faixa de paleta. Depois é só Exportar PNG.",
+                MessageType.None);
         }
 
         private void FillFromColors(Color[] colors)
@@ -359,35 +374,44 @@ namespace PixelCamera.Editor
 
         private void ImportPalette()
         {
-            // LoadImage decodifica apenas PNG e JPEG — BMP não é suportado.
-            string path = EditorUtility.OpenFilePanel("Importar Paleta", Application.dataPath, "png,jpg,jpeg");
-            
-            if (string.IsNullOrEmpty(path)) return;
-            
-            byte[] fileData = System.IO.File.ReadAllBytes(path);
-            var texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+            // Antes: paletteSize = Clamp(texture.width, 2, 16) e lia só a linha 0,
+            // sem reamostrar. Qualquer imagem que não fosse uma faixa 16x1 (ex.:
+            // 256x256) resultava nas cores erradas. Agora passa pelo fluxo
+            // compartilhado, que usa a faixa como paleta quando ela é uma faixa,
+            // e extrai as cores mais frequentes nos demais casos.
+            Color[] colors = PaletteEditorUtility.PickPaletteColors(
+                "Importar Paleta", forceExtract: false, out int sourceColorCount);
+            if (colors == null) return;
 
-            if (!texture.LoadImage(fileData))
+            paletteSize = Mathf.Clamp(sourceColorCount, 2, PaletteUtility.PaletteTextureWidth);
+            for (int i = 0; i < paletteColors.Length; i++)
             {
-                EditorUtility.DisplayDialog(
-                    "Formato não suportado",
-                    "Não foi possível decodificar o arquivo.\n\nFormatos suportados: PNG e JPEG.",
-                    "OK");
-                DestroyImmediate(texture);
-                return;
+                paletteColors[i] = colors[i];
             }
-            
-            paletteSize = Mathf.Clamp(texture.width, 2, 16);
-            
-            for (int i = 0; i < paletteSize; i++)
-            {
-                paletteColors[i] = texture.GetPixel(i, 0);
-            }
-            
-            DestroyImmediate(texture);
+
             selectedColorIndex = 0;
-            
-            Debug.Log($"[Palette Editor] Paleta importada: {path}");
+            Debug.Log($"[Palette Editor] Paleta importada ({sourceColorCount} cores).");
+            Repaint();
+        }
+
+        /// <summary>
+        /// Extrai as cores mais frequentes de uma imagem qualquer (foto, sprite,
+        /// ilustração) e preenche o grid.
+        /// </summary>
+        private void ExtractPaletteFromImage()
+        {
+            Color[] colors = PaletteEditorUtility.PickPaletteColors(
+                "Extrair paleta de uma imagem", forceExtract: true, out _);
+            if (colors == null) return;
+
+            paletteSize = PaletteUtility.PaletteTextureWidth;
+            for (int i = 0; i < paletteColors.Length; i++)
+            {
+                paletteColors[i] = colors[i];
+            }
+
+            selectedColorIndex = 0;
+            Debug.Log("[Palette Editor] Paleta extraída da imagem (16 cores mais frequentes).");
             Repaint();
         }
     }
