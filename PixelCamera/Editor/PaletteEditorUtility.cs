@@ -326,11 +326,14 @@ namespace PixelCamera.Editor
             importerSettings.sRGBTexture = true;
             importerSettings.alphaSource = TextureImporterAlphaSource.None;
             importerSettings.npotScale = TextureImporterNPOTScale.None;
-            importerSettings.textureCompression = TextureImporterCompression.Uncompressed;
-            importerSettings.maxTextureSize = Mathf.Max(
-                importerSettings.maxTextureSize, PaletteUtility.PaletteTextureWidth);
 
             importer.SetTextureSettings(importerSettings);
+
+            // Compressão e tamanho máximo pertencem ao TextureImporter,
+            // não ao TextureImporterSettings. maxTextureSize configura a plataforma Default.
+            importer.textureCompression = TextureImporterCompression.Uncompressed;
+            importer.maxTextureSize = Mathf.Max(
+                importer.maxTextureSize, PaletteUtility.PaletteTextureWidth);
 
             // Sem overriding por plataforma: a paleta precisa ser idêntica em todas.
             importer.SaveAndReimport();
